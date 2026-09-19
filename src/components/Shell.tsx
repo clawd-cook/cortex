@@ -152,10 +152,10 @@ function EntityEditor({
               <Radio.Root
                 key={item}
                 value={item}
-                className="swatch"
+                className="swatch swatch-emoji"
                 aria-label={`图标 ${item}`}
               >
-                {item}
+                <span aria-hidden="true">{item}</span>
                 <Radio.Indicator className="live" />
               </Radio.Root>
             ))}
