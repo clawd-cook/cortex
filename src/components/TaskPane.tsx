@@ -249,7 +249,7 @@ function TaskRow({
           void cortex.setTaskStatus(task, checked ? "completed" : "open")
         }
       />
-      <Button type="button" nativeButton={false} render={<button type="button" />} onClick={onSelect}>
+      <button type="button" onClick={onSelect}>
         <span className="task-title">{task.title}</span>
         <span className="task-meta">
           {rangeChip ? <span className="chip">{formatChip(rangeChip)}</span> : null}
@@ -262,7 +262,7 @@ function TaskRow({
             </span>
           ))}
         </span>
-      </Button>
+      </button>
     </div>
   );
 }

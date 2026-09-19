@@ -509,6 +509,17 @@ button {
   height: 12px;
 }
 
+.task-row > button {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
 .task-title {
   display: block;
   min-width: 0;
@@ -629,6 +640,7 @@ button {
   padding: 8px 10px;
 }
 
+.field .title-input,
 .title-input {
   font-size: 20px;
   border: 0;
