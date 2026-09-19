@@ -1,3 +1,4 @@
+import { Dialog } from "@base-ui/react/dialog";
 import { format, startOfMonth } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 import { CalendarMonth } from "./components/CalendarMonth";
@@ -167,26 +168,27 @@ function CortexApp() {
         </div>
       </AppFrame>
       {route.name === "calendar" && route.taskId ? (
-        <div
-          className="overlay"
-          role="presentation"
-          onClick={() =>
-            navigate({ name: "calendar", month: format(monthDate, "yyyy-MM") })
-          }
+        <Dialog.Root
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              navigate({ name: "calendar", month: format(monthDate, "yyyy-MM") });
+            }
+          }}
         >
-          <div
-            className="dialog-card"
-            style={{ width: "min(380px, calc(100% - 32px))", maxHeight: "80vh", overflow: "auto" }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <TaskDetail
-              task={cortex.tasks.find((task) => task.id === route.taskId) ?? null}
-              onClose={() =>
-                navigate({ name: "calendar", month: format(monthDate, "yyyy-MM") })
-              }
-            />
-          </div>
-        </div>
+          <Dialog.Portal>
+            <Dialog.Backdrop className="overlay" />
+            <Dialog.Popup className="dialog-card" style={{ width: "min(380px, calc(100% - 32px))", maxHeight: "80vh", overflow: "auto" }}>
+              <Dialog.Title className="live">任务详情</Dialog.Title>
+              <TaskDetail
+                task={cortex.tasks.find((task) => task.id === route.taskId) ?? null}
+                onClose={() =>
+                  navigate({ name: "calendar", month: format(monthDate, "yyyy-MM") })
+                }
+              />
+            </Dialog.Popup>
+          </Dialog.Portal>
+        </Dialog.Root>
       ) : null}
       <SearchOverlay
         open={searchOpen}

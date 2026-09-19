@@ -9,6 +9,12 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { Button } from "@base-ui/react/button";
+import { Field } from "@base-ui/react/field";
+import { Form } from "@base-ui/react/form";
+import { Input } from "@base-ui/react/input";
+import { Popover } from "@base-ui/react/popover";
+import { Toolbar } from "@base-ui/react/toolbar";
 import { addMonths, format, isSameMonth, parseISO } from "date-fns";
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { IconPlus } from "../icons";
@@ -25,6 +31,7 @@ import {
 import { undatedOpenTasks } from "../lib/filters";
 import { useCortex } from "../state/store";
 import type { Draft, Task } from "../types";
+import { AppSelect, CheckControl } from "./ui";
 
 function calendarTasks(tasks: Task[], showCompleted: boolean): Task[] {
   return tasks.filter((task) => {
@@ -122,6 +129,12 @@ export function CalendarMonth({
     ? taskById.get(activeId.replace(/^(task:|undated:)/, ""))
     : undefined;
 
+  const filterItems = [
+    { value: "all", label: "全部清单" },
+    { value: "inbox", label: "收集箱" },
+    ...cortex.lists.map((list) => ({ value: list.id, label: list.name })),
+  ];
+
   return (
     <DndContext
       sensors={sensors}
@@ -133,51 +146,40 @@ export function CalendarMonth({
       }}
     >
       <section className="main calendar-wrap" aria-labelledby="cal-title">
-        <div className="cal-toolbar">
-          <button
-            type="button"
+        <Toolbar.Root className="cal-toolbar" aria-label="月历">
+          <Toolbar.Button
             className="icon-btn"
             aria-label="上个月"
             onClick={() => onMonthDate(addMonths(monthDate, -1))}
           >
             ‹
-          </button>
+          </Toolbar.Button>
           <h1 id="cal-title">{monthTitle(monthDate)}</h1>
-          <button
-            type="button"
+          <Toolbar.Button
             className="icon-btn"
             aria-label="下个月"
             onClick={() => onMonthDate(addMonths(monthDate, 1))}
           >
             ›
-          </button>
-          <button
-            type="button"
+          </Toolbar.Button>
+          <Toolbar.Button
             className="ghost-btn"
             onClick={() => onMonthDate(parseISO(`${todayIso()}`))}
           >
             今天
-          </button>
+          </Toolbar.Button>
           <div className="toolbar">
             <label className="field" style={{ margin: 0 }}>
               <span className="live">按清单筛选</span>
-              <select
+              <AppSelect
                 name="calendar-list-filter"
-                value={filterList}
-                onChange={(event) => setFilterList(event.target.value)}
                 aria-label="按清单筛选"
-              >
-                <option value="all">全部清单</option>
-                <option value="inbox">收集箱</option>
-                {cortex.lists.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {list.name}
-                  </option>
-                ))}
-              </select>
+                value={filterList}
+                onValueChange={setFilterList}
+                items={filterItems}
+              />
             </label>
-            <button
-              type="button"
+            <Toolbar.Button
               className="primary-btn"
               onClick={() =>
                 onDraft({
@@ -192,24 +194,23 @@ export function CalendarMonth({
               }
             >
               <IconPlus /> 添加
-            </button>
+            </Toolbar.Button>
           </div>
-        </div>
+        </Toolbar.Root>
         {draft?.source === "toolbar" ? (
-          <form
+          <Form
             className="composer"
             onSubmit={(event) => {
               event.preventDefault();
               void onCommitDraft();
             }}
           >
-            <input
+            <Input
               name="toolbar-task"
               autoComplete="off"
-              autoFocus
               placeholder="今天要做的事…"
               value={draft.title}
-              onChange={(event) => onDraft({ ...draft, title: event.target.value })}
+              onValueChange={(title) => onDraft({ ...draft, title })}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
                   event.preventDefault();
@@ -218,10 +219,10 @@ export function CalendarMonth({
               }}
               aria-label="新任务标题"
             />
-            <button className="primary-btn" type="submit">
+            <Button className="primary-btn" type="submit">
               添加
-            </button>
-          </form>
+            </Button>
+          </Form>
         ) : null}
         <div className="weekdays">
           {weekdayLabels(cortex.settings.weekStartsOn).map((label) => (
@@ -237,6 +238,9 @@ export function CalendarMonth({
                   iso={iso}
                   monthDate={monthDate}
                   overflow={overflow.get(iso) ?? 0}
+                  draft={draft?.source === "cell" && draft.anchorDate === iso ? draft : null}
+                  onDraft={onDraft}
+                  onCommitDraft={onCommitDraft}
                   onCreate={() => {
                     if (draggedRef.current) return;
                     onDraft({
@@ -269,42 +273,6 @@ export function CalendarMonth({
                     );
                   })}
               </div>
-              {draft?.source === "cell" &&
-              draft.anchorDate &&
-              week.includes(draft.anchorDate) ? (
-                <form
-                  className="popover cell-pop"
-                  style={{
-                    left: `calc(${(week.indexOf(draft.anchorDate) / 7) * 100}% + 8px)`,
-                    top: 36,
-                  }}
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void onCommitDraft();
-                  }}
-                >
-                  <label className="field">
-                    <span>准备做什么？</span>
-                    <input
-                      name="cell-task"
-                      autoComplete="off"
-                      autoFocus
-                      placeholder="输入标题…"
-                      value={draft.title}
-                      onChange={(event) =>
-                        onDraft({ ...draft, title: event.target.value })
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === "Escape") {
-                          event.preventDefault();
-                          onDraft(null);
-                        }
-                      }}
-                    />
-                  </label>
-                  <p className="group-label">{draft.anchorDate} · Esc 取消空标题</p>
-                </form>
-              ) : null}
             </div>
           ))}
         </div>
@@ -333,38 +301,80 @@ function DayCell({
   iso,
   monthDate,
   overflow,
+  draft,
   onCreate,
+  onDraft,
+  onCommitDraft,
 }: {
   iso: string;
   monthDate: Date;
   overflow: number;
+  draft: Draft | null;
   onCreate: () => void;
+  onDraft: (draft: Draft | null) => void;
+  onCommitDraft: () => Promise<void>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `day:${iso}`, data: { iso } });
   const date = parseISO(iso);
   const today = iso === todayIso();
+  const open = draft !== null;
   return (
-    <div
-      ref={setNodeRef}
-      className={`day-cell${isOver ? " is-over" : ""}${today ? " is-today" : ""}${
-        isSameMonth(date, monthDate) ? "" : " is-out"
-      }`}
-      data-date={iso}
-      onClick={onCreate}
+    <Popover.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (next) onCreate();
+        else onDraft(null);
+      }}
     >
-      <button
-        type="button"
-        className="day-num"
-        onClick={(event) => {
-          event.stopPropagation();
-          onCreate();
-        }}
-        aria-label={`${iso}，创建任务`}
+      <div
+        ref={setNodeRef}
+        className={`day-cell${isOver ? " is-over" : ""}${today ? " is-today" : ""}${
+          isSameMonth(date, monthDate) ? "" : " is-out"
+        }`}
+        data-date={iso}
+        onClick={onCreate}
       >
-        {format(date, "d")}
-      </button>
-      {overflow > 0 ? <div className="overflow">+{overflow}</div> : null}
-    </div>
+        <Popover.Trigger
+          className="day-num"
+          onClick={(event) => event.stopPropagation()}
+          aria-label={`${iso}，创建任务`}
+        >
+          {format(date, "d")}
+        </Popover.Trigger>
+        {overflow > 0 ? <div className="overflow">+{overflow}</div> : null}
+      </div>
+      <Popover.Portal>
+        <Popover.Positioner side="bottom" align="start" sideOffset={6}>
+          <Popover.Popup className="popover cell-pop">
+            <Form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void onCommitDraft();
+              }}
+            >
+              <Field.Root className="field" name="cell-task">
+                <Field.Label>准备做什么？</Field.Label>
+                <Input
+                  autoComplete="off"
+                  placeholder="输入标题…"
+                  value={draft?.title ?? ""}
+                  onValueChange={(title) => {
+                    if (draft) onDraft({ ...draft, title });
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      onDraft(null);
+                    }
+                  }}
+                />
+              </Field.Root>
+              <p className="group-label">{iso} · Esc 取消空标题</p>
+            </Form>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 
@@ -461,19 +471,19 @@ function CalendarBar({
         aria-label="改开始日期"
         onPointerDown={startResize("start")}
       />
-      <input
-        type="checkbox"
-        checked={task.status === "completed"}
-        aria-label={`完成 ${task.title}`}
-        onChange={() =>
-          void cortex.setTaskStatus(
-            task,
-            task.status === "completed" ? "open" : "completed",
-          )
-        }
+      <span
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
-      />
+      >
+        <CheckControl
+          className="bar-check"
+          checked={task.status === "completed"}
+          label={`完成 ${task.title}`}
+          onCheckedChange={(checked) =>
+            void cortex.setTaskStatus(task, checked ? "completed" : "open")
+          }
+        />
+      </span>
       {bar.showTitle ? <span className="bar-title">{task.title}</span> : null}
       <button
         type="button"
@@ -491,7 +501,7 @@ function UndatedItem({ task }: { task: Task }) {
     data: { taskId: task.id },
   });
   return (
-    <button
+    <Button
       ref={setNodeRef}
       type="button"
       className="schedule-item"
@@ -499,6 +509,6 @@ function UndatedItem({ task }: { task: Task }) {
       {...attributes}
     >
       {task.title}
-    </button>
+    </Button>
   );
 }
