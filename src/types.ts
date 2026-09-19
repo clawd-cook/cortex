@@ -50,6 +50,7 @@ export type Settings = {
   showWeekNumbers: boolean;
   showHolidays: boolean;
   showHabits: boolean;
+  showMiniMonth: boolean;
 };
 
 export type Snapshot = {
@@ -66,6 +67,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showWeekNumbers: true,
   showHolidays: true,
   showHabits: true,
+  showMiniMonth: false,
 };
 
 export const LIST_FALLBACK_COLOR = "#57534e";

@@ -144,6 +144,14 @@ export function SettingsDialog({
         />
         <span>日历和今天叠习惯（只读）</span>
       </label>
+      <label className="field" style={{ gridTemplateColumns: "auto 1fr", alignItems: "center" }}>
+        <AppSwitch
+          name="show-mini-month"
+          checked={settings.showMiniMonth}
+          onCheckedChange={(checked) => patch({ showMiniMonth: checked })}
+        />
+        <span>侧栏底部显示迷你月历（日历页内总会显示）</span>
+      </label>
       <label className="field">
         <span>CSV 导入</span>
         <input

@@ -340,9 +340,9 @@ export function CalendarWeek({
         </div>
       </div>
     </section>
-      <aside className="schedule week-schedule" aria-label="安排任务">
-        <h2>安排任务</h2>
-        <p className="group-label">没有日期的任务点「添加」排到今天，或去月历里拖进某一天。</p>
+      <aside className="schedule week-schedule" aria-label="未排期下一步">
+        <h2>未排期下一步</h2>
+        <p className="group-label">已处理但还没有日期。点「添加」排到今天，或去月历里拖进某一天。</p>
         {undated.length === 0 ? (
           <p className="group-label">暂时没有未排期的下一步。</p>
         ) : (

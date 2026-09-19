@@ -294,6 +294,15 @@ select,
   background: rgba(255, 253, 248, 0.8);
 }
 
+.side-link.has-capture .count {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.side-link.has-capture:not(.is-active) {
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+
 .side-link svg,
 .icon-btn svg,
 .primary-btn svg {

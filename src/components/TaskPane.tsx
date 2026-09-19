@@ -300,14 +300,22 @@ export function TaskPane({
                   ? "没有下一步"
                   : route.name === "next"
                     ? "还没有可动手的下一步"
-                    : "这里还是空的"}
+                    : route.name === "today"
+                      ? "今天还没有承诺"
+                      : route.name === "inbox"
+                        ? "收集箱是空的"
+                        : "这里还是空的"}
               </strong>
               <span>
                 {route.name === "list"
                   ? "在上面写第一条可执行的下一步，也可以先空着。"
                   : route.name === "next"
                     ? "从项目页添加，或给收集箱里的条目设日期、挂到项目。"
-                    : "用 N 或上面的输入框抓住一件事。"}
+                    : route.name === "today"
+                      ? "处理收集箱，或给下一步一个今天的日期。"
+                      : route.name === "inbox"
+                        ? "收好了。有空再处理。"
+                        : "用 N 或上面的输入框抓住一件事。"}
               </span>
             </div>
           ) : (
