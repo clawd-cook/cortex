@@ -18,7 +18,10 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [],
+  "children": [
+    "09-19-para-semantics-clarify",
+    "09-19-para-workflow-shell"
+  ],
   "parent": null,
   "relatedFiles": [],
   "notes": "",
