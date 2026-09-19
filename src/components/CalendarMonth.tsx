@@ -238,7 +238,9 @@ export function CalendarMonth({
             <span key={label}>{label}</span>
           ))}
         </div>
-        <div className="month-body">
+        <div
+          className={`month-body${cortex.settings.showWeekNumbers ? " has-week-nos" : ""}`}
+        >
           {grid.weeks.map((week, weekIndex) => (
             <div className="week" key={week[0]}>
               {week.map((iso) => (
@@ -350,8 +352,10 @@ function DayCell({
       >
         <div className="day-head">
           <div className="day-num-wrap">
-            {settings.showWeekNumbers && culture.weekNumber !== null ? (
-              <span className="week-no">W{culture.weekNumber}</span>
+            {settings.showWeekNumbers ? (
+              <span className="week-no" aria-hidden={culture.weekNumber === null}>
+                {culture.weekNumber !== null ? `W${culture.weekNumber}` : "\u00a0"}
+              </span>
             ) : null}
             <Popover.Trigger
               className="day-num"

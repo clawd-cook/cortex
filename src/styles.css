@@ -775,13 +775,19 @@ a.chip:hover {
   grid-column: 1 / -1;
   grid-row: 1;
   position: absolute;
-  inset: 44px 4px 22px;
+  /* Clear day-head without week-no: pad 6 + day-num 26 */
+  inset: 40px 4px 22px;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   grid-auto-rows: 18px;
   gap: 2px 4px;
   pointer-events: none;
   z-index: 2;
+}
+
+.month-body.has-week-nos .week-bars {
+  /* pad 6 + week-no 11 + gap 2 + day-num 26 ≈ 45; 50 leaves a little air */
+  inset: 50px 4px 22px;
 }
 
 .day-cell {
@@ -810,9 +816,13 @@ a.chip:hover {
 }
 
 .week-no {
+  display: block;
+  height: 11px;
+  line-height: 11px;
   font-size: 10px;
   color: var(--muted);
   letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .day-culture {
@@ -824,6 +834,14 @@ a.chip:hover {
   color: var(--muted);
   line-height: 1.2;
   text-align: right;
+  min-width: 0;
+}
+
+.day-culture > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .fest {
@@ -848,11 +866,15 @@ a.chip:hover {
 }
 
 .day-num {
+  box-sizing: border-box;
   width: 26px;
   height: 26px;
+  padding: 0;
   display: grid;
   place-items: center;
+  border: 1px solid transparent;
   border-radius: 999px;
+  background: transparent;
   font-variant-numeric: tabular-nums;
   font-size: 13px;
 }
@@ -864,6 +886,7 @@ a.chip:hover {
 .day-cell.is-today .day-num {
   background: var(--ink);
   color: var(--surface);
+  border-color: var(--ink);
 }
 
 .task-bar {
@@ -1055,6 +1078,10 @@ a.chip:hover {
 .week-day-head {
   padding: 8px 6px;
   min-width: 0;
+}
+
+.week-day-head strong {
+  font-variant-numeric: tabular-nums;
 }
 
 .week-day-head.is-today strong {
