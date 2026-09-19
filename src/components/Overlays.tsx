@@ -1,6 +1,6 @@
 import { Input } from "@base-ui/react/input";
 import { useEffect, useMemo, useState } from "react";
-import { searchByTitle } from "../lib/filters";
+import { isInboxTask, searchByTitle } from "../lib/filters";
 import { toHash } from "../lib/route";
 import { useCortex } from "../state/store";
 import type { Settings } from "../types";
@@ -57,12 +57,15 @@ export function SearchOverlay({
       {results.map((task) => {
         const href = task.listId
           ? toHash({ name: "list", listId: task.listId, taskId: task.id })
-          : toHash({ name: "inbox", taskId: task.id });
+          : isInboxTask(task)
+            ? toHash({ name: "inbox", taskId: task.id })
+            : toHash({ name: "next", taskId: task.id });
         return (
           <a key={task.id} className="result" href={href} onClick={onClose}>
             {task.title}
             <span className="chip">
-              {lists.find((list) => list.id === task.listId)?.name ?? "收集箱"}
+              {lists.find((list) => list.id === task.listId)?.name ??
+                (isInboxTask(task) ? "收集箱" : "独立")}
             </span>
           </a>
         );
@@ -152,7 +155,7 @@ export function SettingsDialog({
             void file.text().then(async (text) => {
               const result = await importCsv(text);
               setImportMsg(
-                `导入 ${result.lists} 个清单、${result.tags} 个标签、${result.tasks} 条任务${
+                `导入 ${result.lists} 个项目、${result.tags} 个标签、${result.tasks} 条任务${
                   result.skipped ? `，跳过 ${result.skipped} 行` : ""
                 }。`,
               );
@@ -161,11 +164,11 @@ export function SettingsDialog({
         />
       </label>
       <p className="group-label">
-        CSV 列：title,list,start,due,status,tags,notes,completedAt,kind。禁止 Cookie / 私有接口。
+        CSV 列：title,list,start,due,status,tags,notes,completedAt,kind。list 也可写成「项目」。禁止 Cookie / 私有接口。
       </p>
       {importMsg ? <p className="group-label">{importMsg}</p> : null}
       <p className="group-label">
-        数据存在这台电脑。关掉 Cortex 再打开，清单和任务都还在。
+        数据存在这台电脑。关掉 Cortex 再打开，项目和下一步都还在。
       </p>
       <Button type="button" className="primary-btn" onClick={onClose}>
         完成
@@ -184,6 +187,7 @@ export function CommandPalette({
   const commands = [
     { href: "#/smart/today", label: "今天" },
     { href: "#/lists/inbox", label: "收集箱" },
+    { href: "#/smart/next", label: "下一步" },
     { href: "#/calendar/month", label: "月历" },
     { href: "#/calendar/week", label: "周视图" },
     { href: "#/smart/summary", label: "摘要" },

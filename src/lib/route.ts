@@ -4,6 +4,7 @@ export type Route =
   | { name: "inbox"; taskId?: string }
   | { name: "today"; taskId?: string }
   | { name: "tomorrow"; taskId?: string }
+  | { name: "next"; taskId?: string }
   | { name: "list"; listId: string; taskId?: string }
   | { name: "tag"; tagId: string; taskId?: string }
   | { name: "calendar"; view: CalendarView; month?: string; week?: string; taskId?: string }
@@ -41,6 +42,9 @@ export function parseHash(hash: string): Route {
   if (parts[0] === "smart" && parts[1] === "tomorrow") {
     return { name: "tomorrow", taskId: parts[3] };
   }
+  if (parts[0] === "smart" && parts[1] === "next") {
+    return { name: "next", taskId: parts[3] };
+  }
   if (parts[0] === "smart" && parts[1] === "summary") {
     return { name: "summary", week: query.get("week") ?? undefined };
   }
@@ -77,6 +81,10 @@ export function toHash(route: Route): string {
       return route.taskId
         ? `#/smart/tomorrow/tasks/${route.taskId}`
         : "#/smart/tomorrow";
+    case "next":
+      return route.taskId
+        ? `#/smart/next/tasks/${route.taskId}`
+        : "#/smart/next";
     case "list":
       return route.taskId
         ? `#/lists/${route.listId}/tasks/${route.taskId}`
@@ -126,6 +134,7 @@ export function withTask(route: Route, taskId?: string): Route {
     case "inbox":
     case "today":
     case "tomorrow":
+    case "next":
     case "list":
     case "tag":
     case "calendar":
@@ -141,6 +150,7 @@ export function selectedTaskId(route: Route): string | undefined {
     case "inbox":
     case "today":
     case "tomorrow":
+    case "next":
     case "list":
     case "tag":
     case "calendar":

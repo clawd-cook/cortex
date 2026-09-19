@@ -41,4 +41,13 @@ describe("csv import", () => {
     expect(plan.tasks[0].listId).toBe(plan.lists[0].id);
     expect(plan.tasks[1].kind).toBe("habit");
   });
+
+  it("accepts 项目 as the list column alias", () => {
+    const parsed = parseCortexCsv("标题,项目,到期\n写第一步,对账清零,2026-09-19\n");
+    expect(parsed.rows[0]).toMatchObject({
+      title: "写第一步",
+      listName: "对账清零",
+      dueDate: "2026-09-19",
+    });
+  });
 });

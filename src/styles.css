@@ -463,6 +463,17 @@ button {
   font-size: 12px;
 }
 
+a.group-label,
+a.chip {
+  text-decoration: none;
+  color: var(--muted);
+}
+
+a.group-label:hover,
+a.chip:hover {
+  text-decoration: underline;
+}
+
 .task-row {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) auto;

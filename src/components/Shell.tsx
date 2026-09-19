@@ -17,6 +17,7 @@ import {
   IconCalendar,
   IconCheck,
   IconCountdown,
+  IconFlag,
   IconHabit,
   IconInbox,
   IconPlus,
@@ -32,8 +33,10 @@ import {
   weekdayLabels,
 } from "../lib/dates";
 import {
-  countOpen,
+  PROJECT_DELETE_BLOCKED,
   inboxTasks,
+  nextTasks,
+  tasksForList,
   tasksForStatus,
   tasksForTag,
   todayTasks,
@@ -165,7 +168,7 @@ function EntityEditor({
           autoComplete="off"
           value={name}
           onValueChange={onName}
-          placeholder="例如：项目清单…"
+          placeholder="例如：对账清零…"
         />
       </Field.Root>
       <Field.Root className="field" name="color">
@@ -233,7 +236,7 @@ function ListNavItem({
         <ContextMenu.Positioner sideOffset={4}>
           <ContextMenu.Popup className="menu-popup">
             <ContextMenu.Item className="menu-item" onClick={onEdit}>
-              编辑清单
+              编辑项目
             </ContextMenu.Item>
           </ContextMenu.Popup>
         </ContextMenu.Positioner>
@@ -297,11 +300,12 @@ export function Sidebar({
   const [draftName, setDraftName] = useState("");
   const [draftColor, setDraftColor] = useState<string>(LIST_COLORS[0]);
   const [draftEmoji, setDraftEmoji] = useState("📦");
-  const [confirmKind, setConfirmKind] = useState<"list" | "tag" | null>(null);
+  const [confirmKind, setConfirmKind] = useState<"list" | "tag" | "list-blocked" | null>(null);
 
   const openCounts = {
     inbox: inboxTasks(cortex.tasks).length,
     today: todayTasks(cortex.tasks, today).length,
+    next: nextTasks(cortex.tasks).length,
     tomorrow: tomorrowTasks(cortex.tasks, tomorrow).length,
     completed: tasksForStatus(cortex.tasks, "completed").length,
     abandoned: tasksForStatus(cortex.tasks, "abandoned").length,
@@ -320,6 +324,14 @@ export function Sidebar({
         <section className="side-section" aria-label="智能清单">
           <div className="side-heading">智能清单</div>
           <a
+            className={`side-link${isRoute(route, "today") ? " is-active" : ""}`}
+            href="#/smart/today"
+          >
+            <IconSun />
+            <span>今天</span>
+            <b className="count">{openCounts.today}</b>
+          </a>
+          <a
             className={`side-link${isRoute(route, "inbox") ? " is-active" : ""}`}
             href="#/lists/inbox"
           >
@@ -328,12 +340,12 @@ export function Sidebar({
             <b className="count">{openCounts.inbox}</b>
           </a>
           <a
-            className={`side-link${isRoute(route, "today") ? " is-active" : ""}`}
-            href="#/smart/today"
+            className={`side-link${isRoute(route, "next") ? " is-active" : ""}`}
+            href="#/smart/next"
           >
-            <IconSun />
-            <span>今天</span>
-            <b className="count">{openCounts.today}</b>
+            <IconFlag />
+            <span>下一步</span>
+            <b className="count">{openCounts.next}</b>
           </a>
           <a
             className={`side-link${isRoute(route, "tomorrow") ? " is-active" : ""}`}
@@ -354,14 +366,14 @@ export function Sidebar({
 
         <Separator className="side-rule" />
 
-        <section className="side-section" aria-label="清单">
+        <section className="side-section" aria-label="项目">
           <div className="side-heading">
-            清单
-            <Hint label="新建清单" side="top">
+            项目
+            <Hint label="新建项目" side="top">
               <Button
                 type="button"
                 className="icon-btn"
-                aria-label="新建清单"
+                aria-label="新建项目"
                 onClick={() => {
                   setDraftName("");
                   setDraftColor(LIST_COLORS[cortex.lists.length % LIST_COLORS.length]);
@@ -374,14 +386,14 @@ export function Sidebar({
             </Hint>
           </div>
           {cortex.lists.length === 0 ? (
-            <p className="group-label">还没有清单。先建「项目清单」和「下一步行动池」。</p>
+            <p className="group-label">还没有项目。先建一个项目，再往里面写下一步。</p>
           ) : null}
           {cortex.lists.map((list) => (
             <ListNavItem
               key={list.id}
               list={list}
               active={isRoute(route, "list", list.id)}
-              count={countOpen(cortex.tasks.filter((task) => task.listId === list.id))}
+              count={tasksForList(cortex.tasks, list.id).length}
               onEdit={() => {
                 setDraftName(list.name);
                 setDraftColor(list.color);
@@ -459,10 +471,10 @@ export function Sidebar({
         onOpenChange={(open) => {
           if (!open) closeEditors();
         }}
-        title={listEditor === "new" ? "新建清单" : "编辑清单"}
+        title={listEditor === "new" ? "新建项目" : "编辑项目"}
       >
         <EntityEditor
-          title={listEditor === "new" ? "新建清单" : "编辑清单"}
+          title={listEditor === "new" ? "新建项目" : "编辑项目"}
           name={draftName}
           color={draftColor}
           colors={LIST_COLORS}
@@ -470,11 +482,17 @@ export function Sidebar({
           onName={setDraftName}
           onColor={setDraftColor}
           onEmoji={setDraftEmoji}
-          submitLabel={listEditor === "new" ? "创建清单" : "保存清单"}
+          submitLabel={listEditor === "new" ? "创建项目" : "保存项目"}
           onDelete={
             listEditor === "new" || listEditor === null
               ? undefined
-              : () => setConfirmKind("list")
+              : () => {
+                  if (tasksForList(cortex.tasks, listEditor.id).length > 0) {
+                    setConfirmKind("list-blocked");
+                    return;
+                  }
+                  setConfirmKind("list");
+                }
           }
           onSubmit={() => {
             if (listEditor === "new") {
@@ -531,21 +549,44 @@ export function Sidebar({
         />
       </AppDialog>
 
-      <ConfirmDialog
-        open={confirmKind !== null}
+      <AppDialog
+        open={confirmKind === "list-blocked"}
         onOpenChange={(open) => {
           if (!open) setConfirmKind(null);
         }}
-        title={confirmKind === "tag" ? "删除标签？" : "删除清单？"}
+        title="还不能删除这个项目"
+      >
+        <p className="group-label">{PROJECT_DELETE_BLOCKED}</p>
+        <div className="toolbar">
+          <Button type="button" className="primary-btn" onClick={() => setConfirmKind(null)}>
+            知道了
+          </Button>
+        </div>
+      </AppDialog>
+
+      <ConfirmDialog
+        open={confirmKind === "list" || confirmKind === "tag"}
+        onOpenChange={(open) => {
+          if (!open) setConfirmKind(null);
+        }}
+        title={confirmKind === "tag" ? "删除标签？" : "删除项目？"}
         description={
           confirmKind === "tag"
             ? `删除标签「${draftName}」？`
-            : `删除清单「${draftName}」？任务会回到收集箱。`
+            : `删除项目「${draftName}」？已完成的下一步会一起移除或变成无项目。`
         }
         confirmLabel="删除"
         onConfirm={() => {
           if (confirmKind === "list" && listEditor && listEditor !== "new") {
-            void cortex.removeList(listEditor.id);
+            void cortex
+              .removeList(listEditor.id)
+              .then(() => {
+                closeEditors();
+              })
+              .catch(() => {
+                setConfirmKind("list-blocked");
+              });
+            return;
           }
           if (confirmKind === "tag" && tagEditor && tagEditor !== "new") {
             void cortex.removeTag(tagEditor.id);

@@ -11,9 +11,12 @@ import { IconInbox } from "../icons";
 import { addIsoDays, formatChip, normalizeIsoDate, todayIso } from "../lib/dates";
 import {
   completedInList,
+  completedInboxTasks,
   groupByList,
   habitsOnDay,
   inboxTasks,
+  isInboxTask,
+  nextTasks,
   openHabits,
   splitOpenCompleted,
   tasksForList,
@@ -22,10 +25,11 @@ import {
   todayTasks,
   tomorrowTasks,
 } from "../lib/filters";
+import { nowIso } from "../lib/id";
 import type { Route } from "../lib/route";
-import { withTask } from "../lib/route";
+import { toHash, withTask } from "../lib/route";
 import { useCortex } from "../state/store";
-import { isHabit, type Draft, type Task, type TaskStatus } from "../types";
+import { LIST_COLORS, isHabit, type Draft, type List, type Task, type TaskStatus } from "../types";
 import { AppScrollArea, AppSelect, AppSwitch, CheckControl, ConfirmDialog } from "./ui";
 
 const PRIORITY_LABEL = ["无", "低", "中", "高"] as const;
@@ -38,8 +42,10 @@ export function viewTitle(route: Route, lists: { id: string; name: string }[], t
       return "今天";
     case "tomorrow":
       return "明天";
+    case "next":
+      return "下一步";
     case "list":
-      return lists.find((list) => list.id === route.listId)?.name ?? "清单";
+      return lists.find((list) => list.id === route.listId)?.name ?? "项目";
     case "tag":
       return tags.find((tag) => tag.id === route.tagId)?.name ?? "标签";
     case "completed":
@@ -68,6 +74,8 @@ function visibleTasks(route: Route, tasks: Task[]): Task[] {
       return todayTasks(tasks, today);
     case "tomorrow":
       return tomorrowTasks(tasks, addIsoDays(today, 1));
+    case "next":
+      return nextTasks(tasks);
     case "list":
       return tasksForList(tasks, route.listId);
     case "tag":
@@ -104,17 +112,21 @@ export function TaskPane({
     "taskId" in route ? route.taskId : undefined;
   const selected = cortex.tasks.find((task) => task.id === selectedId) ?? null;
   const grouped = useMemo(() => {
-    if (route.name === "today" || route.name === "tomorrow") {
+    if (route.name === "today" || route.name === "tomorrow" || route.name === "next") {
       return groupByList(tasks, cortex.lists);
     }
     return [{ list: null, tasks }];
   }, [cortex.lists, route.name, tasks]);
+  const emptyProjects =
+    route.name === "next"
+      ? cortex.lists.filter((list) => tasksForList(cortex.tasks, list.id).length === 0)
+      : [];
 
   const completed =
     route.name === "list"
       ? completedInList(cortex.tasks, route.listId)
       : route.name === "inbox"
-        ? completedInList(cortex.tasks, null)
+        ? completedInboxTasks(cortex.tasks)
         : splitOpenCompleted(tasks).completed;
 
   return (
@@ -125,19 +137,24 @@ export function TaskPane({
             <h1 id="view-title">{viewTitle(route, cortex.lists, cortex.tags)}</h1>
             <p>
               {route.name === "today"
-                ? "到期今天或跨天包含今天的未完成任务，按来源清单分组。"
+                ? "今天要动手的下一步，按项目分组。独立下一步在「独立」组。"
                 : route.name === "inbox"
-                  ? "还没放进清单的事。标题为空按 Esc 不会落库。"
-                  : route.name === "habits"
-                    ? "只读叠层用的习惯。日历和今天能看见，不在这里打卡。"
-                    : "同一条任务也会出现在日历上。"}
+                  ? "还没决定去哪的事。挂到项目、变成项目、设日期，或扔掉。"
+                  : route.name === "next"
+                    ? "已离开收集箱、还没做完的下一步。点项目名可回到所属项目。"
+                    : route.name === "list"
+                      ? "这个项目里可执行的下一步。"
+                      : route.name === "habits"
+                        ? "只读叠层用的习惯。日历和今天能看见，不在这里打卡。"
+                        : "同一条任务也会出现在日历上。"}
             </p>
           </div>
         </div>
         {route.name === "completed" ||
         route.name === "abandoned" ||
         route.name === "trash" ||
-        route.name === "summary" ? null : (
+        route.name === "summary" ||
+        route.name === "next" ? null : (
           <Form
             className="composer"
             onSubmit={(event) => {
@@ -152,8 +169,12 @@ export function TaskPane({
                 route.name === "habits"
                   ? "添加习惯…"
                   : route.name === "today"
-                    ? "添加任务至收集箱…"
-                    : "添加任务…"
+                    ? "添加今天的下一步…"
+                    : route.name === "list"
+                      ? "添加下一步…"
+                      : route.name === "inbox"
+                        ? "放进收集箱…"
+                        : "添加任务…"
               }
               value={draft?.source === "list" || draft?.source === "toolbar" ? draft.title : ""}
               onValueChange={(title) =>
@@ -185,6 +206,42 @@ export function TaskPane({
               }}
               aria-label="新任务标题"
             />
+            {route.name === "habits" ? null : (
+              <Button
+                className="ghost-btn"
+                type="button"
+                onClick={() => {
+                  const title = (
+                    draft?.source === "list" || draft?.source === "toolbar" ? draft.title : ""
+                  ).trim();
+                  if (!title) return;
+                  void cortex
+                    .createTask({
+                      title,
+                      listId: route.name === "list" ? route.listId : null,
+                      startDate:
+                        route.name === "today"
+                          ? todayIso()
+                          : route.name === "tomorrow"
+                            ? addIsoDays(todayIso(), 1)
+                            : null,
+                      dueDate:
+                        route.name === "today"
+                          ? todayIso()
+                          : route.name === "tomorrow"
+                            ? addIsoDays(todayIso(), 1)
+                            : null,
+                      tagIds: route.name === "tag" ? [route.tagId] : [],
+                      kind: "task",
+                      status: "completed",
+                      completedAt: nowIso(),
+                    })
+                    .then(() => onDraft(null));
+                }}
+              >
+                现在做
+              </Button>
+            )}
             <Button className="primary-btn" type="submit">
               添加
             </Button>
@@ -194,16 +251,32 @@ export function TaskPane({
           {route.name !== "search" && grouped.every((group) => group.tasks.length === 0) ? (
             <div className="empty">
               <IconInbox />
-              <strong>这里还是空的</strong>
-              <span>用 N 或上面的输入框抓住一件事。</span>
+              <strong>
+                {route.name === "list"
+                  ? "没有下一步"
+                  : route.name === "next"
+                    ? "还没有可动手的下一步"
+                    : "这里还是空的"}
+              </strong>
+              <span>
+                {route.name === "list"
+                  ? "在上面写第一条可执行的下一步，也可以先空着。"
+                  : route.name === "next"
+                    ? "从项目页添加，或给收集箱里的条目设日期、挂到项目。"
+                    : "用 N 或上面的输入框抓住一件事。"}
+              </span>
             </div>
           ) : (
             grouped.map((group) => (
-              <div key={group.list?.id ?? "inbox-group"}>
-                {route.name === "today" || route.name === "tomorrow" ? (
-                  <div className="group-label">
-                    {group.list ? `${group.list.emoji} ${group.list.name}` : "收集箱"}
-                  </div>
+              <div key={group.list?.id ?? "independent-group"}>
+                {route.name === "today" || route.name === "tomorrow" || route.name === "next" ? (
+                  group.list ? (
+                    <a className="group-label" href={toHash({ name: "list", listId: group.list.id })}>
+                      {group.list.emoji} {group.list.name}
+                    </a>
+                  ) : (
+                    <div className="group-label">独立</div>
+                  )
                 ) : null}
                 {group.tasks.map((task) => (
                   <TaskRow
@@ -211,12 +284,31 @@ export function TaskPane({
                     task={task}
                     selected={task.id === selectedId}
                     hideCheck={isHabit(task)}
+                    project={
+                      group.list ??
+                      cortex.lists.find((list) => list.id === task.listId) ??
+                      null
+                    }
+                    showProject={
+                      route.name === "today" ||
+                      route.name === "tomorrow" ||
+                      route.name === "next"
+                    }
                     onSelect={() => onNavigate(withTask(route, task.id))}
                   />
                 ))}
               </div>
             ))
           )}
+          {emptyProjects.map((list) => (
+            <a
+              key={`empty-${list.id}`}
+              className="group-label"
+              href={toHash({ name: "list", listId: list.id })}
+            >
+              {list.emoji} {list.name} · 没有下一步
+            </a>
+          ))}
           {route.name === "today" && cortex.settings.showHabits ? <TodayHabits /> : null}
           {cortex.settings.showCompleted &&
           completed.length > 0 &&
@@ -239,7 +331,11 @@ export function TaskPane({
           ) : null}
         </AppScrollArea>
       </section>
-      <TaskDetail task={selected} onClose={() => onNavigate(withTask(route, undefined))} />
+      <TaskDetail
+        task={selected}
+        onClose={() => onNavigate(withTask(route, undefined))}
+        onNavigate={onNavigate}
+      />
     </>
   );
 }
@@ -264,11 +360,15 @@ function TaskRow({
   task,
   selected,
   hideCheck,
+  project,
+  showProject,
   onSelect,
 }: {
   task: Task;
   selected: boolean;
   hideCheck?: boolean;
+  project?: List | null;
+  showProject?: boolean;
   onSelect: () => void;
 }) {
   const cortex = useCortex();
@@ -302,11 +402,28 @@ function TaskRow({
           ))}
         </span>
       </button>
+      {showProject ? (
+        project ? (
+          <a className="chip" href={toHash({ name: "list", listId: project.id })}>
+            {project.emoji} {project.name}
+          </a>
+        ) : (
+          <span className="chip">独立</span>
+        )
+      ) : null}
     </div>
   );
 }
 
-export function TaskDetail({ task, onClose }: { task: Task | null; onClose: () => void }) {
+export function TaskDetail({
+  task,
+  onClose,
+  onNavigate,
+}: {
+  task: Task | null;
+  onClose: () => void;
+  onNavigate?: (route: Route) => void;
+}) {
   const cortex = useCortex();
   const [confirmKind, setConfirmKind] = useState<"trash" | "destroy" | null>(null);
 
@@ -332,7 +449,7 @@ export function TaskDetail({ task, onClose }: { task: Task | null; onClose: () =
   };
 
   const listItems = [
-    { value: "inbox", label: "收集箱" },
+    { value: "none", label: "无项目" },
     ...cortex.lists.map((list) => ({
       value: list.id,
       label: `${list.emoji} ${list.name}`,
@@ -493,6 +610,9 @@ export function TaskDetail({ task, onClose }: { task: Task | null; onClose: () =
             清除日期
           </Toolbar.Button>
         </Toolbar.Root>
+        {task.listId === null ? (
+          <p className="group-label">清掉日期且没有项目时，会回到收集箱。</p>
+        ) : null}
       </div>
       <div className="field">
         <span>优先级</span>
@@ -514,14 +634,35 @@ export function TaskDetail({ task, onClose }: { task: Task | null; onClose: () =
         </ToggleGroup>
       </div>
       <Field.Root className="field" name="list">
-        <Field.Label>所属清单</Field.Label>
+        <Field.Label>所属项目</Field.Label>
         <AppSelect
           name="list"
-          value={task.listId ?? "inbox"}
-          onValueChange={(value) => patch({ listId: value === "inbox" ? null : value })}
+          value={task.listId ?? "none"}
+          onValueChange={(value) => patch({ listId: value === "none" ? null : value })}
           items={listItems}
         />
       </Field.Root>
+      {isInboxTask(task) ? (
+        <div className="toolbar">
+          <Button
+            type="button"
+            className="ghost-btn"
+            onClick={() => {
+              void cortex
+                .createList({
+                  name: task.title,
+                  color: LIST_COLORS[cortex.lists.length % LIST_COLORS.length],
+                })
+                .then(async (list) => {
+                  await cortex.removeTask(task.id);
+                  onNavigate?.({ name: "list", listId: list.id });
+                });
+            }}
+          >
+            变成项目
+          </Button>
+        </div>
+      ) : null}
       <div className="field">
         <span>标签</span>
         {cortex.tags.length === 0 ? (

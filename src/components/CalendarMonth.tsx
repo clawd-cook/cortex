@@ -69,7 +69,7 @@ export function CalendarMonth({
   const grid = buildMonthGrid(monthDate, cortex.settings.weekStartsOn);
   const matchesList = (task: Task) => {
     if (filterList === "all") return true;
-    if (filterList === "inbox") return task.listId === null;
+    if (filterList === "none") return task.listId === null;
     return task.listId === filterList;
   };
   const visible = calendarTasks(cortex.tasks, cortex.settings.showCompleted).filter(
@@ -138,8 +138,8 @@ export function CalendarMonth({
     : undefined;
 
   const filterItems = [
-    { value: "all", label: "全部清单" },
-    { value: "inbox", label: "收集箱" },
+    { value: "all", label: "全部项目" },
+    { value: "none", label: "无项目" },
     ...cortex.lists.map((list) => ({ value: list.id, label: list.name })),
   ];
 
@@ -179,10 +179,10 @@ export function CalendarMonth({
           <CalendarViewToggle view="month" month={monthKey} week={weekKey} />
           <div className="toolbar">
             <label className="field" style={{ margin: 0 }}>
-              <span className="live">按清单筛选</span>
+              <span className="live">按项目筛选</span>
               <AppSelect
                 name="calendar-list-filter"
-                aria-label="按清单筛选"
+                aria-label="按项目筛选"
                 value={filterList}
                 onValueChange={setFilterList}
                 items={filterItems}
@@ -255,7 +255,7 @@ export function CalendarMonth({
                     if (draggedRef.current) return;
                     onDraft({
                       title: "",
-                      listId: filterList === "all" || filterList === "inbox" ? null : filterList,
+                      listId: filterList === "all" || filterList === "none" ? null : filterList,
                       startDate: iso,
                       dueDate: iso,
                       tagIds: [],
@@ -291,7 +291,7 @@ export function CalendarMonth({
         <h2>安排任务</h2>
         <p className="group-label">没有日期的任务。拖进某一天即排期。</p>
         {undated.length === 0 ? (
-          <p className="group-label">收集箱里暂时没有未排期的事。</p>
+          <p className="group-label">暂时没有未排期的下一步。</p>
         ) : (
           undated.map((task) => <UndatedItem key={task.id} task={task} />)
         )}

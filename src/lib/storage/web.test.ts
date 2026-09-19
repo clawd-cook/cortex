@@ -2,9 +2,34 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { STORAGE_KEY } from "./contract";
 import { createWebStore } from "./web";
 
+function ensureLocalStorage() {
+  if (typeof globalThis.localStorage?.clear === "function") {
+    globalThis.localStorage.clear();
+    return;
+  }
+  const data = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        data.set(key, String(value));
+      },
+      removeItem: (key: string) => {
+        data.delete(key);
+      },
+      clear: () => data.clear(),
+      key: (index: number) => [...data.keys()][index] ?? null,
+      get length() {
+        return data.size;
+      },
+    },
+  });
+}
+
 describe("web store persistence", () => {
   beforeEach(() => {
-    localStorage.clear();
+    ensureLocalStorage();
   });
 
   it("reloads tasks after a simulated restart", async () => {
@@ -28,10 +53,27 @@ describe("web store persistence", () => {
       createdAt: "t",
       updatedAt: "t",
     });
+    expect(STORAGE_KEY).toBe("cortex:v2");
     expect(localStorage.getItem(STORAGE_KEY)).toContain("关掉再打开还在");
 
     const second = createWebStore();
     const snap = await second.load();
     expect(snap.tasks[0]?.title).toBe("关掉再打开还在");
+  });
+
+  it("does not load cortex:v1 snapshots", async () => {
+    localStorage.setItem(
+      "cortex:v1",
+      JSON.stringify({
+        lists: [],
+        tags: [],
+        tasks: [{ id: "old", title: "旧快照" }],
+        settings: {},
+      }),
+    );
+    const store = createWebStore();
+    const snap = await store.load();
+    expect(snap.tasks).toEqual([]);
+    expect(localStorage.getItem("cortex:v2")).toBeNull();
   });
 });

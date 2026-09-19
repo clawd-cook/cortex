@@ -11,4 +11,4 @@ export interface CortexStore {
   saveSettings(settings: Settings): Promise<void>;
 }
 
-export const STORAGE_KEY = "cortex:v1";
+export const STORAGE_KEY = "cortex:v2";

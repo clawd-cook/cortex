@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { planCsvImport, parseCortexCsv } from "../lib/csv";
+import { assertCanDeleteProject } from "../lib/filters";
 import { createId, nowIso } from "../lib/id";
 import { normalizeIsoDate } from "../lib/dates";
 import { createStore, type CortexStore } from "../lib/storage";
@@ -121,6 +122,7 @@ export function CortexProvider({
 
   const removeList = useCallback(
     async (id: string) => {
+      assertCanDeleteProject(snapshot.tasks, id);
       await store.deleteList(id);
       setSnapshot((curr) => ({
         ...curr,
@@ -130,7 +132,7 @@ export function CortexProvider({
         ),
       }));
     },
-    [store],
+    [snapshot.tasks, store],
   );
 
   const createTag = useCallback(

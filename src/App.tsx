@@ -275,6 +275,7 @@ function CortexApp() {
                       : { name: "calendar", view: "month", month: format(monthDate, "yyyy-MM") },
                   )
                 }
+                onNavigate={navigate}
               />
             </Dialog.Popup>
           </Dialog.Portal>

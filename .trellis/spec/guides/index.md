@@ -36,8 +36,9 @@ These guides help you **ask the right questions before coding**.
 - [ ] You're not sure where to put some logic
 - [ ] You are adding an event kind, JSONL record, RPC payload, or config field
 - [ ] UI / command code starts casting raw payload fields directly
+- [ ] Inbox, today, next, or project delete rules are changing
 
-→ Read [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md)
+→ Read [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) and [PARA Workflow](../frontend/para-workflow.md)
 
 ### When to Think About Code Reuse
 

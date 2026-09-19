@@ -1,6 +1,9 @@
 import { isHabit, type List, type Task, type TaskStatus } from "../types";
 import { taskDateRange, taskOverlapsDay } from "./dates";
 
+export const PROJECT_DELETE_BLOCKED =
+  "项目还有未完成的下一步，先做完、扔掉，或挂到别的项目后再删除。";
+
 export function isOpen(task: Task): boolean {
   return task.status === "open";
 }
@@ -9,12 +12,26 @@ export function workTasks(tasks: Task[]): Task[] {
   return tasks.filter((task) => !isHabit(task));
 }
 
+export function isInboxTask(task: Task): boolean {
+  return !isHabit(task) && isOpen(task) && task.listId === null && taskDateRange(task) === null;
+}
+
 export function inboxTasks(tasks: Task[]): Task[] {
-  return workTasks(tasks).filter((task) => task.listId === null && isOpen(task));
+  return tasks.filter(isInboxTask);
+}
+
+export function nextTasks(tasks: Task[]): Task[] {
+  return workTasks(tasks).filter((task) => isOpen(task) && !isInboxTask(task));
 }
 
 export function tasksForList(tasks: Task[], listId: string): Task[] {
   return workTasks(tasks).filter((task) => task.listId === listId && isOpen(task));
+}
+
+export function assertCanDeleteProject(tasks: Task[], projectId: string): void {
+  if (tasksForList(tasks, projectId).length > 0) {
+    throw new Error(PROJECT_DELETE_BLOCKED);
+  }
 }
 
 export function tasksForStatus(tasks: Task[], status: TaskStatus): Task[] {
@@ -26,13 +43,11 @@ export function tasksForTag(tasks: Task[], tagId: string): Task[] {
 }
 
 export function todayTasks(tasks: Task[], todayIso: string): Task[] {
-  return workTasks(tasks).filter((task) => isOpen(task) && taskOverlapsDay(task, todayIso));
+  return nextTasks(tasks).filter((task) => taskOverlapsDay(task, todayIso));
 }
 
 export function tomorrowTasks(tasks: Task[], tomorrowIso: string): Task[] {
-  return workTasks(tasks).filter(
-    (task) => isOpen(task) && taskOverlapsDay(task, tomorrowIso),
-  );
+  return nextTasks(tasks).filter((task) => taskOverlapsDay(task, tomorrowIso));
 }
 
 export function undatedOpenTasks(tasks: Task[]): Task[] {
@@ -57,10 +72,10 @@ export function groupByList(
 ): { list: List | null; tasks: Task[] }[] {
   const byId = new Map(lists.map((list) => [list.id, list]));
   const groups = new Map<string, Task[]>();
-  const inbox: Task[] = [];
+  const independent: Task[] = [];
   for (const task of tasks) {
     if (!task.listId) {
-      inbox.push(task);
+      independent.push(task);
       continue;
     }
     const bucket = groups.get(task.listId) ?? [];
@@ -68,7 +83,7 @@ export function groupByList(
     groups.set(task.listId, bucket);
   }
   const result: { list: List | null; tasks: Task[] }[] = [];
-  if (inbox.length > 0) result.push({ list: null, tasks: inbox });
+  if (independent.length > 0) result.push({ list: null, tasks: independent });
   for (const list of lists) {
     const grouped = groups.get(list.id);
     if (grouped?.length) result.push({ list, tasks: grouped });
@@ -89,6 +104,15 @@ export function completedInList(
     (task) =>
       task.status === "completed" &&
       (listId === null ? task.listId === null : task.listId === listId),
+  );
+}
+
+export function completedInboxTasks(tasks: Task[]): Task[] {
+  return workTasks(tasks).filter(
+    (task) =>
+      task.status === "completed" &&
+      task.listId === null &&
+      taskDateRange(task) === null,
   );
 }
 

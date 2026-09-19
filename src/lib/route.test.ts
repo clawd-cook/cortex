@@ -24,5 +24,10 @@ describe("hash routes", () => {
       week: "2026-09-14",
     });
     expect(toHash({ name: "habits", taskId: "h1" })).toBe("#/habits/tasks/h1");
+    expect(parseHash("#/smart/next/tasks/n1")).toEqual({
+      name: "next",
+      taskId: "n1",
+    });
+    expect(toHash({ name: "next" })).toBe("#/smart/next");
   });
 });

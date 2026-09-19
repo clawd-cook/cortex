@@ -28,6 +28,7 @@ const HEADER_ALIASES: Record<string, string> = {
   标题: "title",
   list: "list",
   清单: "list",
+  项目: "list",
   start: "start",
   开始: "start",
   due: "due",
