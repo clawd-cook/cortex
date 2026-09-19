@@ -1,1 +1,4 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend spec index for this layer"}
+{"file": ".trellis/spec/frontend/para-workflow.md", "reason": "Must not regress inbox/next/today/project-delete contracts"}
+{"file": ".trellis/spec/guides/index.md", "reason": "Cross-layer and reuse checklists before CSS token edits"}
+{"file": ".trellis/tasks/09-19-ui-style-review/research/web-interface-guidelines.md", "reason": "Guideline subset for this remediation"}

@@ -64,6 +64,8 @@ export const DEFAULT_SETTINGS: Settings = {
   showHabits: true,
 };
 
+export const LIST_FALLBACK_COLOR = "#57534e";
+
 export const LIST_COLORS = [
   "#4f46e5",
   "#0f7a4a",

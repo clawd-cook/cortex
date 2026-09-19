@@ -6,11 +6,19 @@
   --ink: #1a1612;
   --muted: #6b6358;
   --line: #e4dccf;
-  --accent: #4f46e5;
-  --accent-soft: #eef2ff;
+  --accent: #1a1612;
+  --accent-soft: rgba(26, 22, 18, 0.08);
+  --stone: #b4ab9e;
+  --now: #8b3a2a;
+  --habit: #7a4a3a;
+  --habit-soft: #efe4d8;
+  --list-fallback: #57534e;
+  --pill-off: #d6d3cd;
+  --pill-off-ink: #3f3a34;
   --rail: #16131a;
   --rail-ink: #f4f0e8;
   --rail-muted: #9a948c;
+  --rail-raised: #2a2433;
   --danger: #b42318;
   --ok: #0f7a4a;
   --shadow: 0 10px 30px rgba(26, 22, 18, 0.08);
@@ -57,9 +65,20 @@ textarea,
 select {
   font: inherit;
   color: inherit;
+  background-color: var(--surface);
 }
 
-button {
+button,
+a,
+input,
+textarea,
+select,
+.task-row,
+.check,
+.swatch,
+.mini-day,
+.day-cell,
+.week-slot {
   touch-action: manipulation;
 }
 
@@ -87,6 +106,12 @@ button {
   top: 12px;
 }
 
+#main-view,
+.main-head h1,
+.cal-toolbar h1 {
+  scroll-margin-top: 12px;
+}
+
 .app-boot {
   display: grid;
   place-items: center;
@@ -100,21 +125,28 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 64px 248px minmax(0, 1fr) 320px;
+  grid-template-columns: 64px 248px minmax(0, 1fr);
   height: 100%;
   background: var(--bg);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
 }
 
-.app-shell.is-calendar {
-  grid-template-columns: 64px 248px minmax(0, 1fr) 280px;
+#main-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
 }
 
-.app-shell.is-wide-main {
-  grid-template-columns: 64px 248px minmax(0, 1fr);
+.app-shell.is-calendar #main-view {
+  grid-template-columns: minmax(0, 1fr) 280px;
 }
 
-.app-shell.is-wide-main .main {
-  grid-column: 3 / -1;
+.app-shell.is-wide-main #main-view {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .rail {
@@ -133,8 +165,8 @@ button {
   border-radius: 10px;
   display: grid;
   place-items: center;
-  background: #2a2433;
-  color: #c7c2ff;
+  background: var(--rail-raised);
+  color: var(--rail-ink);
   font-weight: 700;
   letter-spacing: -0.04em;
   text-decoration: none;
@@ -155,6 +187,7 @@ button {
 .text-btn {
   border: 0;
   background: transparent;
+  background-color: transparent;
   cursor: pointer;
   border-radius: 10px;
 }
@@ -180,7 +213,7 @@ button {
 .rail-btn:hover,
 .rail-btn.is-active {
   color: var(--rail-ink);
-  background: #2a2433;
+  background: var(--rail-raised);
 }
 
 .rail-btn:disabled,
@@ -329,7 +362,11 @@ button {
 }
 
 .mini-day.is-out {
-  color: #b4ab9e;
+  color: var(--stone);
+}
+
+.mini-day:hover:not(.is-today) {
+  background: var(--accent-soft);
 }
 
 .mini-day.is-today {
@@ -411,7 +448,7 @@ button {
 }
 
 .primary-btn:hover {
-  background: #2d261f;
+  background: var(--rail-raised);
 }
 
 .primary-btn:disabled {
@@ -431,7 +468,7 @@ button {
   padding: 10px 12px;
   border: 1px dashed var(--line);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
 }
 
 .composer input {
@@ -445,7 +482,7 @@ button {
   outline: none;
 }
 
-.composer:focus-within {
+.composer:has(:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -476,7 +513,7 @@ a.chip:hover {
 
 .task-row {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: start;
   width: 100%;
@@ -499,10 +536,10 @@ a.chip:hover {
 }
 
 .check {
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  border: 1.5px solid #b4ab9e;
+  width: 24px;
+  height: 24px;
+  margin-top: 0;
+  border: 1.5px solid var(--stone);
   border-radius: 999px;
   background: transparent;
   cursor: pointer;
@@ -516,7 +553,7 @@ a.chip:hover {
 .check[data-checked] {
   background: var(--ok);
   border-color: var(--ok);
-  color: white;
+  color: var(--surface);
 }
 
 .check-mark[data-unchecked] {
@@ -567,7 +604,12 @@ a.chip:hover {
 }
 
 .pill {
-  color: white;
+  color: var(--surface);
+}
+
+.pill.is-off {
+  background: var(--pill-off);
+  color: var(--pill-off-ink);
 }
 
 .empty {
@@ -605,6 +647,10 @@ a.chip:hover {
   font-size: 13px;
   padding: 6px 0;
   text-align: left;
+}
+
+.fold-trigger:hover {
+  color: var(--ink);
 }
 
 .fold-panel {
@@ -655,7 +701,8 @@ a.chip:hover {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface);
+  color: var(--ink);
   padding: 8px 10px;
 }
 
@@ -665,11 +712,13 @@ a.chip:hover {
   border: 0;
   padding-left: 0;
   background: transparent;
+  overflow-wrap: anywhere;
 }
 
 .notes-input {
   min-height: 140px;
   resize: vertical;
+  overflow-wrap: anywhere;
 }
 
 .field {
@@ -693,8 +742,8 @@ a.chip:hover {
 }
 
 .swatch {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
   border: 2px solid transparent;
   cursor: pointer;
@@ -708,7 +757,7 @@ a.chip:hover {
 .priority-row button,
 .priority-row .chip-toggle {
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
   border-radius: 999px;
   padding: 4px 10px;
   cursor: pointer;
@@ -827,7 +876,7 @@ a.chip:hover {
 }
 
 .fest {
-  color: #b42318;
+  color: var(--danger);
 }
 
 .rest-badge {
@@ -836,11 +885,11 @@ a.chip:hover {
 }
 
 .rest-badge.is-off {
-  color: #0f7a4a;
+  color: var(--ok);
 }
 
 .rest-badge.is-work {
-  color: #b42318;
+  color: var(--danger);
 }
 
 .day-cell.is-over {
@@ -857,8 +906,13 @@ a.chip:hover {
   font-size: 13px;
 }
 
+.day-cell:hover,
+.week-allday-cell:hover {
+  background: var(--accent-soft);
+}
+
 .day-cell.is-out .day-num {
-  color: #b4ab9e;
+  color: var(--stone);
 }
 
 .day-cell.is-today .day-num {
@@ -876,13 +930,19 @@ a.chip:hover {
   gap: 4px;
   min-width: 0;
   padding: 0 6px 0 4px;
-  color: white;
+  color: var(--surface);
   cursor: grab;
   user-select: none;
 }
 
 .task-bar.is-done {
   opacity: 0.55;
+}
+
+.task-bar.is-selected,
+.timed-event.is-selected {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
 }
 
 .task-bar input,
@@ -901,7 +961,7 @@ a.chip:hover {
 }
 
 .task-bar .bar-check[data-checked] {
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
 }
 
@@ -964,6 +1024,10 @@ a.chip:hover {
   text-align: left;
 }
 
+.schedule-item:hover {
+  background: var(--accent-soft);
+}
+
 .view-toggle {
   display: inline-flex;
   border: 1px solid var(--line);
@@ -976,6 +1040,10 @@ a.chip:hover {
   font-size: 13px;
   color: inherit;
   text-decoration: none;
+}
+
+.view-toggle a:hover:not(.is-on) {
+  background: var(--accent-soft);
 }
 
 .view-toggle a.is-on {
@@ -1007,8 +1075,8 @@ a.chip:hover {
   max-width: 100%;
   padding: 1px 8px;
   border-radius: 999px;
-  background: #f3e8ee;
-  color: #9d174d;
+  background: var(--habit-soft);
+  color: var(--habit);
   font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1019,7 +1087,7 @@ a.chip:hover {
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: #be185d;
+  background: var(--habit);
   margin: 7px 2px 0;
   flex: 0 0 auto;
 }
@@ -1119,7 +1187,7 @@ a.chip:hover {
 }
 
 .week-col.is-today {
-  background: rgba(79, 70, 229, 0.04);
+  background: var(--accent-soft);
 }
 
 .week-slot {
@@ -1132,12 +1200,16 @@ a.chip:hover {
   padding: 0;
 }
 
+.week-slot:hover {
+  background: var(--accent-soft);
+}
+
 .timed-event {
   position: absolute;
   z-index: 2;
   border: 0;
   border-radius: 6px;
-  color: #fff;
+  color: var(--surface);
   text-align: left;
   padding: 4px 6px;
   overflow: hidden;
@@ -1164,7 +1236,7 @@ a.chip:hover {
   left: 0;
   right: 0;
   height: 2px;
-  background: #e11d48;
+  background: var(--now);
   z-index: 4;
   pointer-events: none;
 }
@@ -1177,7 +1249,7 @@ a.chip:hover {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #e11d48;
+  background: var(--now);
 }
 
 .week-schedule .schedule-item {
@@ -1192,6 +1264,7 @@ a.chip:hover {
   font-size: 13px;
   line-height: 1.5;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .summary-groups {
@@ -1233,7 +1306,7 @@ a.chip:hover {
 .dialog-card,
 .overlay-card {
   position: fixed;
-  top: 12vh;
+  top: max(12vh, env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
   z-index: 31;
@@ -1368,7 +1441,7 @@ a.chip:hover {
   padding: 2px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
 }
 
@@ -1386,7 +1459,7 @@ a.chip:hover {
 
 .switch[data-checked] .switch-thumb {
   translate: 16px 0;
-  background: #fff;
+  background: var(--surface);
 }
 
 .side-rule {
@@ -1416,10 +1489,13 @@ a.chip:hover {
     position: fixed;
     top: 0;
     right: 0;
-    width: min(360px, 100%);
+    width: min(360px, calc(100% - env(safe-area-inset-right)));
     height: 100%;
     z-index: 20;
     box-shadow: var(--shadow);
+    padding-top: max(20px, env(safe-area-inset-top));
+    padding-right: max(18px, env(safe-area-inset-right));
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
