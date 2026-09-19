@@ -1,53 +1,218 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/tauri";
-import "./App.css";
+import { format, startOfMonth } from "date-fns";
+import { useCallback, useEffect, useState } from "react";
+import { CalendarMonth } from "./components/CalendarMonth";
+import { CommandPalette, SearchOverlay, SettingsDialog, useAppHotkeys } from "./components/Overlays";
+import { AppFrame } from "./components/Shell";
+import { TaskDetail, TaskPane } from "./components/TaskPane";
+import { addIsoDays, todayIso } from "./lib/dates";
+import { selectedTaskId, withTask, type Route } from "./lib/route";
+import { useHashRoute } from "./lib/useHashRoute";
+import { CortexProvider, useCortex } from "./state/store";
+import type { Draft } from "./types";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+function monthFromRoute(route: Route, fallback: Date): Date {
+  if (route.name === "calendar" && route.month) {
+    const [year, month] = route.month.split("-").map(Number);
+    if (year && month) return new Date(year, month - 1, 1);
+  }
+  return startOfMonth(fallback);
+}
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-    setGreetMsg(await invoke("greet", { name }));
+function CortexApp() {
+  const cortex = useCortex();
+  const [route, navigate] = useHashRoute();
+  const [monthDate, setMonthDate] = useState(() => startOfMonth(new Date()));
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+
+  useEffect(() => {
+    if (route.name === "calendar") {
+      setMonthDate(monthFromRoute(route, monthDate));
+    }
+    if (route.name === "search") {
+      setSearchOpen(true);
+      setSearchQuery(route.q);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only sync when the hash route changes
+  }, [route]);
+
+  const commitDraft = useCallback(async () => {
+    if (!draft || !draft.title.trim()) {
+      setDraft(null);
+      return;
+    }
+    const created = await cortex.createTask({
+      title: draft.title,
+      listId: draft.listId,
+      startDate: draft.startDate,
+      dueDate: draft.dueDate,
+      tagIds: draft.tagIds,
+    });
+    setDraft(null);
+    if (created) navigate(withTask(route, created.id));
+  }, [cortex, draft, navigate, route]);
+
+  const startComposer = useCallback(() => {
+    const today = todayIso();
+    const tomorrow = addIsoDays(today, 1);
+    if (route.name === "calendar") {
+      setDraft({
+        title: "",
+        listId: null,
+        startDate: today,
+        dueDate: today,
+        tagIds: [],
+        source: "toolbar",
+        anchorDate: today,
+      });
+      return;
+    }
+    setDraft({
+      title: "",
+      listId: route.name === "list" ? route.listId : null,
+      startDate: route.name === "today" ? today : route.name === "tomorrow" ? tomorrow : null,
+      dueDate: route.name === "today" ? today : route.name === "tomorrow" ? tomorrow : null,
+      tagIds: route.name === "tag" ? [route.tagId] : [],
+      source: "list",
+    });
+    window.setTimeout(() => {
+      document.querySelector<HTMLInputElement>('input[name="new-task"]')?.focus();
+    }, 0);
+  }, [route]);
+
+  const completeSelected = useCallback(() => {
+    const id = selectedTaskId(route);
+    const task = cortex.tasks.find((item) => item.id === id);
+    if (!task) return;
+    void cortex.setTaskStatus(task, task.status === "completed" ? "open" : "completed");
+  }, [cortex, route]);
+
+  useAppHotkeys({
+    onNew: startComposer,
+    onSearch: () => {
+      setSearchOpen(true);
+      navigate({ name: "search", q: searchQuery });
+    },
+    onToday: () => navigate({ name: "today" }),
+    onInbox: () => navigate({ name: "inbox" }),
+    onMonth: () => navigate({ name: "calendar", month: format(monthDate, "yyyy-MM") }),
+    onEscape: () => {
+      setDraft(null);
+      setSearchOpen(false);
+      setSettingsOpen(false);
+      setCommandOpen(false);
+    },
+    onComplete: completeSelected,
+    onCommand: () => setCommandOpen(true),
+  });
+
+  const onMonthDate = (date: Date) => {
+    setMonthDate(date);
+    if (route.name === "calendar") {
+      navigate({
+        name: "calendar",
+        month: format(date, "yyyy-MM"),
+        taskId: route.taskId,
+      });
+    }
+  };
+
+  if (!cortex.ready) {
+    return <div className="app-boot">正在读取本地数据…</div>;
+  }
+  if (cortex.error) {
+    return <div className="app-boot app-error">{cortex.error}</div>;
   }
 
   return (
-    <div className="container">
-      <h1>Welcome to Tauri!</h1>
-
-      <div className="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
+    <>
+      <a className="skip-link" href="#main-view">
+        跳到主内容
+      </a>
+      <AppFrame
+        route={route}
+        monthDate={monthDate}
+        onMonthDate={onMonthDate}
+        onOpenSettings={() => setSettingsOpen(true)}
       >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-
-      <p>{greetMsg}</p>
-    </div>
+        <div id="main-view" style={{ display: "contents" }}>
+          {route.name === "calendar" ? (
+            <CalendarMonth
+              monthDate={monthDate}
+              onMonthDate={onMonthDate}
+              draft={draft?.source === "cell" || draft?.source === "toolbar" ? draft : null}
+              selectedTaskId={route.taskId}
+              onSelectTask={(taskId) =>
+                navigate({
+                  name: "calendar",
+                  month: format(monthDate, "yyyy-MM"),
+                  taskId,
+                })
+              }
+              onDraft={setDraft}
+              onCommitDraft={commitDraft}
+            />
+          ) : (
+            <TaskPane
+              route={route}
+              draft={draft}
+              onDraft={setDraft}
+              onNavigate={navigate}
+              onCommitDraft={commitDraft}
+            />
+          )}
+        </div>
+      </AppFrame>
+      {route.name === "calendar" && route.taskId ? (
+        <div
+          className="overlay"
+          role="presentation"
+          onClick={() =>
+            navigate({ name: "calendar", month: format(monthDate, "yyyy-MM") })
+          }
+        >
+          <div
+            className="dialog-card"
+            style={{ width: "min(380px, calc(100% - 32px))", maxHeight: "80vh", overflow: "auto" }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <TaskDetail
+              task={cortex.tasks.find((task) => task.id === route.taskId) ?? null}
+              onClose={() =>
+                navigate({ name: "calendar", month: format(monthDate, "yyyy-MM") })
+              }
+            />
+          </div>
+        </div>
+      ) : null}
+      <SearchOverlay
+        open={searchOpen}
+        query={searchQuery}
+        onQuery={(value) => {
+          setSearchQuery(value);
+          navigate({ name: "search", q: value });
+        }}
+        onClose={() => {
+          setSearchOpen(false);
+          if (route.name === "search") navigate({ name: "today" });
+        }}
+      />
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
+      <div className="live" aria-live="polite">
+        {draft ? "正在创建任务，Esc 取消。" : ""}
+      </div>
+    </>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <CortexProvider>
+      <CortexApp />
+    </CortexProvider>
+  );
+}
