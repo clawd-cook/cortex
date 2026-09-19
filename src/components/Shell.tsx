@@ -69,7 +69,7 @@ export function Rail({
       </a>
       <div className="rail-nav">
         <a
-          className={`rail-btn${route.name !== "calendar" && route.name !== "search" ? " is-active" : ""}`}
+          className={`rail-btn${route.name !== "calendar" && route.name !== "search" && route.name !== "habits" ? " is-active" : ""}`}
           href="#/smart/today"
         >
           <IconInbox />
@@ -135,6 +135,7 @@ function EntityEditor({
       className="dialog-form"
       onSubmit={(event) => {
         event.preventDefault();
+        if (!name.trim()) return;
         onSubmit();
       }}
     >
@@ -198,7 +199,7 @@ function EntityEditor({
             删除
           </Button>
         ) : null}
-        <Button type="submit" className="primary-btn" disabled={!name.trim()}>
+        <Button type="submit" className="primary-btn">
           {submitLabel}
         </Button>
       </div>
@@ -680,7 +681,9 @@ export function AppFrame({
     <div className={`app-shell${route.name === "calendar" ? " is-calendar" : ""}${route.name === "summary" ? " is-wide-main" : ""}`}>
       <Rail route={route} onOpenSettings={onOpenSettings} />
       <Sidebar route={route} monthDate={monthDate} onMonthDate={onMonthDate} />
-      {children}
+      <div id="main-view">
+        {children}
+      </div>
     </div>
   );
 }

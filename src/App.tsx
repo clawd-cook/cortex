@@ -175,6 +175,16 @@ function CortexApp() {
     }
   };
 
+  useEffect(() => {
+    if (!draft?.title.trim()) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [draft?.title]);
+
   if (!cortex.ready) {
     return <div className="app-boot">正在读取本地数据…</div>;
   }
@@ -193,7 +203,6 @@ function CortexApp() {
         onMonthDate={onMonthDate}
         onOpenSettings={() => setSettingsOpen(true)}
       >
-        <div id="main-view" style={{ display: "contents" }}>
           {route.name === "calendar" && route.view === "week" ? (
             <CalendarWeek
               weekDate={weekDate}
@@ -239,7 +248,6 @@ function CortexApp() {
               onCommitDraft={commitDraft}
             />
           )}
-        </div>
       </AppFrame>
       {route.name === "calendar" && route.taskId ? (
         <Dialog.Root

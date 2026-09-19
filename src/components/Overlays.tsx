@@ -44,6 +44,7 @@ export function SearchOverlay({
         className="search-input"
         name="search"
         autoComplete="off"
+        aria-label="搜索任务标题"
         placeholder="搜索任务标题…"
         value={query}
         onValueChange={onQuery}
@@ -94,6 +95,7 @@ export function SettingsDialog({
         <span>星期开始于</span>
         <AppSelect
           name="week-starts-on"
+          aria-label="星期开始于"
           value={String(settings.weekStartsOn)}
           onValueChange={(value) => patch({ weekStartsOn: Number(value) as 0 | 1 })}
           items={[

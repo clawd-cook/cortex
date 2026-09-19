@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/para-workflow.md", "reason": "PARA filter and storage-key regressions"}
+{"file": ".trellis/spec/guides/index.md", "reason": "False-positive review patterns"}
+{"file": ".trellis/tasks/09-19-ui-style-review/research/web-interface-guidelines.md", "reason": "Verify guideline coverage without inventing dark mode"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend layer index"}

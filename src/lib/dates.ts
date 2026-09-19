@@ -109,11 +109,22 @@ export function shiftRange(
   };
 }
 
+const dayLabel = new Intl.DateTimeFormat("zh-CN", {
+  month: "numeric",
+  day: "numeric",
+});
+
+const weekdayNarrow = new Intl.DateTimeFormat("zh-CN", { weekday: "narrow" });
+
+export function formatDayLabel(date: Date): string {
+  return dayLabel.format(date);
+}
+
 export function formatChip(iso: string, now = new Date()): string {
   const date = fromIsoDate(iso);
   if (isSameDay(date, now)) return "今天";
   if (isSameDay(date, addDays(startOfDay(now), 1))) return "明天";
-  return format(date, "M月d日");
+  return formatDayLabel(date);
 }
 
 export type MonthGrid = {
@@ -141,10 +152,13 @@ export function buildMonthGrid(
 }
 
 export function weekdayLabels(weekStartsOn: WeekStartsOn): string[] {
-  const sunFirst = ["日", "一", "二", "三", "四", "五", "六"];
-  return weekStartsOn === 1
-    ? ["一", "二", "三", "四", "五", "六", "日"]
-    : sunFirst;
+  const sunday = new Date(2026, 8, 20);
+  const sunFirst = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(sunday);
+    day.setDate(sunday.getDate() + index);
+    return weekdayNarrow.format(day);
+  });
+  return weekStartsOn === 1 ? [...sunFirst.slice(1), sunFirst[0]] : sunFirst;
 }
 
 export function monthTitle(monthDate: Date): string {
@@ -163,5 +177,5 @@ export function weekRangeLabel(days: string[]): string {
   if (days.length === 0) return "";
   const first = fromIsoDate(days[0]);
   const last = fromIsoDate(days[days.length - 1]);
-  return `${format(first, "M月d日")} – ${format(last, "M月d日")}`;
+  return `${formatDayLabel(first)} – ${formatDayLabel(last)}`;
 }

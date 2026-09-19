@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend spec index for this layer"}
+{"file": ".trellis/spec/frontend/para-workflow.md", "reason": "Must not regress inbox/next/today/project-delete contracts"}
+{"file": ".trellis/spec/guides/index.md", "reason": "Cross-layer and reuse checklists before CSS token edits"}
+{"file": ".trellis/tasks/09-19-ui-style-review/research/web-interface-guidelines.md", "reason": "Guideline subset for this remediation"}
