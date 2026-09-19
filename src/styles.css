@@ -109,6 +109,14 @@ button {
   grid-template-columns: 64px 248px minmax(0, 1fr) 280px;
 }
 
+.app-shell.is-wide-main {
+  grid-template-columns: 64px 248px minmax(0, 1fr);
+}
+
+.app-shell.is-wide-main .main {
+  grid-column: 3 / -1;
+}
+
 .rail {
   display: flex;
   flex-direction: column;
@@ -748,7 +756,7 @@ button {
   position: relative;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  min-height: 118px;
+  min-height: 128px;
   border-top: 1px solid var(--line);
 }
 
@@ -756,7 +764,7 @@ button {
   grid-column: 1 / -1;
   grid-row: 1;
   position: absolute;
-  inset: 32px 4px 20px;
+  inset: 44px 4px 22px;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   grid-auto-rows: 18px;
@@ -767,12 +775,60 @@ button {
 
 .day-cell {
   min-width: 0;
-  min-height: 118px;
+  min-height: 128px;
   padding: 6px;
   background: transparent;
   border: 0;
   text-align: left;
   cursor: pointer;
+}
+
+.day-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.day-num-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.week-no {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.day-culture {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.2;
+  text-align: right;
+}
+
+.fest {
+  color: #b42318;
+}
+
+.rest-badge {
+  font-weight: 700;
+  font-size: 10px;
+}
+
+.rest-badge.is-off {
+  color: #0f7a4a;
+}
+
+.rest-badge.is-work {
+  color: #b42318;
 }
 
 .day-cell.is-over {
@@ -894,6 +950,247 @@ button {
   background: var(--surface);
   cursor: grab;
   text-align: left;
+}
+
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.view-toggle a {
+  padding: 4px 12px;
+  font-size: 13px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.view-toggle a.is-on {
+  background: var(--ink);
+  color: var(--surface);
+}
+
+.habits-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 4px 12px;
+  align-items: center;
+}
+
+.habits-strip.is-compact {
+  padding: 4px 0 0;
+}
+
+.habit-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #f3e8ee;
+  color: #9d174d;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.habit-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #be185d;
+  margin: 7px 2px 0;
+  flex: 0 0 auto;
+}
+
+.week-board {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  padding: 0 8px 8px;
+}
+
+.week-head,
+.week-allday {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  border-bottom: 1px solid var(--line);
+}
+
+.week-gutter-label {
+  display: grid;
+  place-items: end;
+  padding: 8px 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.week-head {
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+}
+
+.week-day-head {
+  padding: 8px 6px;
+  min-width: 0;
+}
+
+.week-day-head.is-today strong {
+  background: var(--ink);
+  color: var(--surface);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.week-allday-cols {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-height: 52px;
+}
+
+.week-allday-cell {
+  min-height: 52px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.week-allday-bars {
+  inset: 4px;
+}
+
+.week-scroll {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.week-gutter {
+  position: sticky;
+  left: 0;
+  background: var(--bg);
+  z-index: 1;
+}
+
+.week-hour-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+  padding-right: 8px;
+  transform: translateY(-7px);
+}
+
+.week-cols {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  position: relative;
+}
+
+.week-col {
+  position: relative;
+  border-left: 1px solid var(--line);
+}
+
+.week-col.is-today {
+  background: rgba(79, 70, 229, 0.04);
+}
+
+.week-slot {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.timed-event {
+  position: absolute;
+  z-index: 2;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  text-align: left;
+  padding: 4px 6px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.timed-event.is-done {
+  opacity: 0.55;
+}
+
+.timed-event strong {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #e11d48;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.now-line::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e11d48;
+}
+
+.week-schedule .schedule-item {
+  cursor: default;
+}
+
+.summary-text {
+  margin: 0 20px 16px;
+  padding: 12px 14px;
+  background: var(--bg-deep);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.summary-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  padding: 0 20px 24px;
+}
+
+.summary-groups h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.summary-groups ul {
+  margin: 0;
+  padding-left: 18px;
 }
 
 .overlay {
@@ -1091,7 +1388,8 @@ button {
 
 @media (max-width: 1100px) {
   .app-shell,
-  .app-shell.is-calendar {
+  .app-shell.is-calendar,
+  .app-shell.is-wide-main {
     grid-template-columns: 56px 220px minmax(0, 1fr);
   }
 

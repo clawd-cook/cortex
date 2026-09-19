@@ -1,14 +1,18 @@
+export type CalendarView = "month" | "week";
+
 export type Route =
   | { name: "inbox"; taskId?: string }
   | { name: "today"; taskId?: string }
   | { name: "tomorrow"; taskId?: string }
   | { name: "list"; listId: string; taskId?: string }
   | { name: "tag"; tagId: string; taskId?: string }
-  | { name: "calendar"; month?: string; taskId?: string }
+  | { name: "calendar"; view: CalendarView; month?: string; week?: string; taskId?: string }
   | { name: "completed" }
   | { name: "abandoned" }
   | { name: "trash" }
-  | { name: "search"; q: string };
+  | { name: "search"; q: string }
+  | { name: "summary"; week?: string }
+  | { name: "habits"; taskId?: string };
 
 function pathAndQuery(hash: string): { path: string; query: URLSearchParams } {
   const raw = hash.replace(/^#/, "");
@@ -22,9 +26,12 @@ export function parseHash(hash: string): Route {
   const parts = path.split("/").filter(Boolean);
 
   if (parts[0] === "calendar") {
+    const view: CalendarView = parts[1] === "week" ? "week" : "month";
     return {
       name: "calendar",
+      view,
       month: query.get("month") ?? undefined,
+      week: query.get("week") ?? undefined,
       taskId: query.get("task") ?? undefined,
     };
   }
@@ -33,6 +40,12 @@ export function parseHash(hash: string): Route {
   }
   if (parts[0] === "smart" && parts[1] === "tomorrow") {
     return { name: "tomorrow", taskId: parts[3] };
+  }
+  if (parts[0] === "smart" && parts[1] === "summary") {
+    return { name: "summary", week: query.get("week") ?? undefined };
+  }
+  if (parts[0] === "habits") {
+    return { name: "habits", taskId: parts[2] };
   }
   if (parts[0] === "lists" && parts[1] === "inbox") {
     return { name: "inbox", taskId: parts[3] };
@@ -74,6 +87,12 @@ export function toHash(route: Route): string {
         : `#/tags/${route.tagId}`;
     case "calendar": {
       const params = new URLSearchParams();
+      if (route.view === "week") {
+        if (route.week) params.set("week", route.week);
+        if (route.taskId) params.set("task", route.taskId);
+        const q = params.toString();
+        return q ? `#/calendar/week?${q}` : "#/calendar/week";
+      }
       if (route.month) params.set("month", route.month);
       if (route.taskId) params.set("task", route.taskId);
       const q = params.toString();
@@ -91,6 +110,14 @@ export function toHash(route: Route): string {
       const q = params.toString();
       return q ? `#/search?${q}` : "#/search";
     }
+    case "summary": {
+      const params = new URLSearchParams();
+      if (route.week) params.set("week", route.week);
+      const q = params.toString();
+      return q ? `#/smart/summary?${q}` : "#/smart/summary";
+    }
+    case "habits":
+      return route.taskId ? `#/habits/tasks/${route.taskId}` : "#/habits";
   }
 }
 
@@ -102,6 +129,7 @@ export function withTask(route: Route, taskId?: string): Route {
     case "list":
     case "tag":
     case "calendar":
+    case "habits":
       return { ...route, taskId };
     default:
       return route;
@@ -116,6 +144,7 @@ export function selectedTaskId(route: Route): string | undefined {
     case "list":
     case "tag":
     case "calendar":
+    case "habits":
       return route.taskId;
     default:
       return undefined;

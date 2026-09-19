@@ -79,13 +79,14 @@ export function Rail({
           <IconCalendar />
           日历
         </a>
-        <Hint label="V1 之后">
-          <button type="button" className="rail-btn is-soon" disabled>
-            <IconHabit />
-            习惯
-          </button>
-        </Hint>
-        <Hint label="V1 之后">
+        <a
+          className={`rail-btn${route.name === "habits" ? " is-active" : ""}`}
+          href="#/habits"
+        >
+          <IconHabit />
+          习惯
+        </a>
+        <Hint label="V2">
           <button type="button" className="rail-btn is-soon" disabled>
             <IconCountdown />
             倒数
@@ -341,6 +342,13 @@ export function Sidebar({
             <IconCalendar />
             <span>明天</span>
             <b className="count">{openCounts.tomorrow}</b>
+          </a>
+          <a
+            className={`side-link${isRoute(route, "summary") ? " is-active" : ""}`}
+            href="#/smart/summary"
+          >
+            <IconCheck />
+            <span>摘要</span>
           </a>
         </section>
 
@@ -628,7 +636,7 @@ export function AppFrame({
   children: ReactNode;
 }) {
   return (
-    <div className={`app-shell${route.name === "calendar" ? " is-calendar" : ""}`}>
+    <div className={`app-shell${route.name === "calendar" ? " is-calendar" : ""}${route.name === "summary" ? " is-wide-main" : ""}`}>
       <Rail route={route} onOpenSettings={onOpenSettings} />
       <Sidebar route={route} monthDate={monthDate} onMonthDate={onMonthDate} />
       {children}

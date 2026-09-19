@@ -12,8 +12,17 @@ describe("hash routes", () => {
     );
     expect(parseHash("#/calendar/month?month=2026-09&task=t1")).toEqual({
       name: "calendar",
+      view: "month",
       month: "2026-09",
       taskId: "t1",
     });
+    expect(toHash({ name: "calendar", view: "week", week: "2026-09-14" })).toBe(
+      "#/calendar/week?week=2026-09-14",
+    );
+    expect(parseHash("#/smart/summary?week=2026-09-14")).toEqual({
+      name: "summary",
+      week: "2026-09-14",
+    });
+    expect(toHash({ name: "habits", taskId: "h1" })).toBe("#/habits/tasks/h1");
   });
 });

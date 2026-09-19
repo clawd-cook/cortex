@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, type List, type Settings, type Snapshot, type Tag, type Task } from "../../types";
+import { DEFAULT_SETTINGS, hydrateSettings, hydrateTask, type List, type Settings, type Snapshot, type Tag, type Task } from "../../types";
 import { STORAGE_KEY, type CortexStore } from "./contract";
 
 type Memory = { snapshot: Snapshot };
@@ -15,8 +15,8 @@ function read(memory: Memory): Snapshot {
     memory.snapshot = {
       lists: parsed.lists ?? [],
       tags: parsed.tags ?? [],
-      tasks: parsed.tasks ?? [],
-      settings: { ...DEFAULT_SETTINGS, ...parsed.settings },
+      tasks: (parsed.tasks ?? []).filter((task) => task.id && task.title).map((task) => hydrateTask(task)),
+      settings: hydrateSettings(parsed.settings),
     };
     return memory.snapshot;
   } catch {

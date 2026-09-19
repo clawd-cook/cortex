@@ -16,6 +16,9 @@ function task(partial: Partial<Task> & { id: string; title: string }): Task {
     startDate: null,
     dueDate: null,
     allDay: true,
+    startTime: null,
+    endTime: null,
+    kind: "task",
     priority: 0,
     status: "open",
     notes: "",
@@ -99,11 +102,18 @@ describe("smart lists", () => {
         id: "undated",
         title: "无日期",
       }),
+      task({
+        id: "habit-today",
+        title: "喝水",
+        kind: "habit",
+        dueDate: today,
+      }),
     );
 
-    expect(tasks).toHaveLength(33);
+    expect(tasks).toHaveLength(34);
     const todayRows = todayTasks(tasks, today);
     expect(todayRows).toHaveLength(30);
+    expect(todayRows.some((row) => row.id === "habit-today")).toBe(false);
     expect(todayRows.some((row) => row.id === "later")).toBe(false);
     expect(todayRows.some((row) => row.id === "done")).toBe(false);
     expect(todayRows.some((row) => row.id === "undated")).toBe(false);

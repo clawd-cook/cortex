@@ -1,9 +1,24 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { planCsvImport, parseCortexCsv } from "../lib/csv";
 import { createId, nowIso } from "../lib/id";
 import { normalizeIsoDate } from "../lib/dates";
 import { createStore, type CortexStore } from "../lib/storage";
+import { normalizeHm } from "../lib/times";
 import type { List, Settings, Snapshot, Tag, Task, TaskStatus } from "../types";
-import { DEFAULT_SETTINGS } from "../types";
+import {
+  DEFAULT_SETTINGS,
+  hydrateSettings,
+  hydrateTask,
+  LIST_COLORS,
+  TAG_COLORS,
+} from "../types";
+
+type ImportResult = {
+  lists: number;
+  tags: number;
+  tasks: number;
+  skipped: number;
+};
 
 type CortexContextValue = {
   ready: boolean;
@@ -23,6 +38,7 @@ type CortexContextValue = {
   setTaskStatus: (task: Task, status: TaskStatus) => Promise<void>;
   removeTask: (id: string) => Promise<void>;
   updateSettings: (settings: Settings) => Promise<void>;
+  importCsv: (text: string) => Promise<ImportResult>;
 };
 
 const CortexContext = createContext<CortexContextValue | null>(null);
@@ -54,7 +70,12 @@ export function CortexProvider({
       .load()
       .then((loaded) => {
         if (cancelled) return;
-        applySnapshot(setSnapshot, loaded);
+        applySnapshot(setSnapshot, {
+          lists: loaded.lists ?? [],
+          tags: loaded.tags ?? [],
+          tasks: (loaded.tasks ?? []).map((task) => hydrateTask(task)),
+          settings: hydrateSettings(loaded.settings),
+        });
         setReady(true);
       })
       .catch((err: unknown) => {
@@ -164,7 +185,10 @@ export function CortexProvider({
         listId: input.listId ?? null,
         startDate: normalizeIsoDate(input.startDate ?? input.dueDate ?? null),
         dueDate: normalizeIsoDate(input.dueDate ?? input.startDate ?? null),
-        allDay: input.allDay ?? true,
+        allDay: input.allDay ?? !input.startTime,
+        startTime: normalizeHm(input.startTime),
+        endTime: normalizeHm(input.endTime),
+        kind: input.kind === "habit" ? "habit" : "task",
         priority: input.priority ?? 0,
         status: input.status ?? "open",
         notes: input.notes ?? "",
@@ -187,6 +211,9 @@ export function CortexProvider({
         ...task,
         startDate: normalizeIsoDate(task.startDate),
         dueDate: normalizeIsoDate(task.dueDate),
+        startTime: normalizeHm(task.startTime),
+        endTime: normalizeHm(task.endTime),
+        kind: task.kind === "habit" ? "habit" as const : "task" as const,
         updatedAt: nowIso(),
       };
       await store.saveTask(next);
@@ -228,6 +255,36 @@ export function CortexProvider({
     [store],
   );
 
+  const importCsv = useCallback(
+    async (text: string) => {
+      const parsed = parseCortexCsv(text);
+      const stamp = nowIso();
+      const plan = planCsvImport(
+        parsed,
+        snapshot,
+        stamp,
+        { list: createId, tag: createId, task: createId },
+        { list: LIST_COLORS, tag: TAG_COLORS },
+      );
+      for (const list of plan.lists) await store.saveList(list);
+      for (const tag of plan.tags) await store.saveTag(tag);
+      for (const task of plan.tasks) await store.saveTask(task);
+      setSnapshot((curr) => ({
+        ...curr,
+        lists: [...curr.lists, ...plan.lists],
+        tags: [...curr.tags, ...plan.tags],
+        tasks: [...curr.tasks, ...plan.tasks],
+      }));
+      return {
+        lists: plan.lists.length,
+        tags: plan.tags.length,
+        tasks: plan.tasks.length,
+        skipped: parsed.skipped,
+      };
+    },
+    [snapshot, store],
+  );
+
   const value = useMemo<CortexContextValue>(
     () => ({
       ready,
@@ -247,12 +304,14 @@ export function CortexProvider({
       setTaskStatus,
       removeTask,
       updateSettings,
+      importCsv,
     }),
     [
       createList,
       createTag,
       createTask,
       error,
+      importCsv,
       ready,
       removeList,
       removeTag,

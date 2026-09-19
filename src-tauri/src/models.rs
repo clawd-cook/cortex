@@ -1,5 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+fn default_kind() -> String {
+    "task".into()
+}
+
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct List {
@@ -30,6 +38,12 @@ pub struct Task {
     pub start_date: Option<String>,
     pub due_date: Option<String>,
     pub all_day: bool,
+    #[serde(default)]
+    pub start_time: Option<String>,
+    #[serde(default)]
+    pub end_time: Option<String>,
+    #[serde(default = "default_kind")]
+    pub kind: String,
     pub priority: i32,
     pub status: String,
     pub notes: String,
@@ -45,6 +59,14 @@ pub struct Task {
 pub struct Settings {
     pub week_starts_on: u8,
     pub show_completed: bool,
+    #[serde(default = "default_true")]
+    pub show_lunar: bool,
+    #[serde(default = "default_true")]
+    pub show_week_numbers: bool,
+    #[serde(default = "default_true")]
+    pub show_holidays: bool,
+    #[serde(default = "default_true")]
+    pub show_habits: bool,
 }
 
 impl Default for Settings {
@@ -52,6 +74,10 @@ impl Default for Settings {
         Self {
             week_starts_on: 1,
             show_completed: false,
+            show_lunar: true,
+            show_week_numbers: true,
+            show_holidays: true,
+            show_habits: true,
         }
     }
 }

@@ -78,7 +78,8 @@ export function SettingsDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const { settings, updateSettings } = useCortex();
+  const { settings, updateSettings, importCsv } = useCortex();
+  const [importMsg, setImportMsg] = useState<string | null>(null);
 
   const patch = (partial: Partial<Settings>) => {
     void updateSettings({ ...settings, ...partial });
@@ -106,6 +107,63 @@ export function SettingsDialog({
         />
         <span>显示已完成（列表折起来，月历上仍能看见）</span>
       </label>
+      <label className="field" style={{ gridTemplateColumns: "auto 1fr", alignItems: "center" }}>
+        <AppSwitch
+          name="show-lunar"
+          checked={settings.showLunar}
+          onCheckedChange={(checked) => patch({ showLunar: checked })}
+        />
+        <span>显示农历与节日名</span>
+      </label>
+      <label className="field" style={{ gridTemplateColumns: "auto 1fr", alignItems: "center" }}>
+        <AppSwitch
+          name="show-week-numbers"
+          checked={settings.showWeekNumbers}
+          onCheckedChange={(checked) => patch({ showWeekNumbers: checked })}
+        />
+        <span>周一格显示周序号</span>
+      </label>
+      <label className="field" style={{ gridTemplateColumns: "auto 1fr", alignItems: "center" }}>
+        <AppSwitch
+          name="show-holidays"
+          checked={settings.showHolidays}
+          onCheckedChange={(checked) => patch({ showHolidays: checked })}
+        />
+        <span>显示节假日班休</span>
+      </label>
+      <label className="field" style={{ gridTemplateColumns: "auto 1fr", alignItems: "center" }}>
+        <AppSwitch
+          name="show-habits"
+          checked={settings.showHabits}
+          onCheckedChange={(checked) => patch({ showHabits: checked })}
+        />
+        <span>日历和今天叠习惯（只读）</span>
+      </label>
+      <label className="field">
+        <span>CSV 导入</span>
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          aria-label="选择 CSV 文件"
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = "";
+            if (!file) return;
+            void file.text().then(async (text) => {
+              const result = await importCsv(text);
+              setImportMsg(
+                `导入 ${result.lists} 个清单、${result.tags} 个标签、${result.tasks} 条任务${
+                  result.skipped ? `，跳过 ${result.skipped} 行` : ""
+                }。`,
+              );
+            });
+          }}
+        />
+      </label>
+      <p className="group-label">
+        CSV 列：title,list,start,due,status,tags,notes,completedAt,kind。禁止 Cookie / 私有接口。
+      </p>
+      {importMsg ? <p className="group-label">{importMsg}</p> : null}
       <p className="group-label">
         数据存在这台电脑。关掉 Cortex 再打开，清单和任务都还在。
       </p>
@@ -127,6 +185,9 @@ export function CommandPalette({
     { href: "#/smart/today", label: "今天" },
     { href: "#/lists/inbox", label: "收集箱" },
     { href: "#/calendar/month", label: "月历" },
+    { href: "#/calendar/week", label: "周视图" },
+    { href: "#/smart/summary", label: "摘要" },
+    { href: "#/habits", label: "习惯" },
     { href: "#/search", label: "搜索标题" },
   ];
   return (
@@ -136,7 +197,7 @@ export function CommandPalette({
         if (!next) onClose();
       }}
       title="指令"
-      description="V1 占位。选一项即跳转。"
+      description="选一项即跳转。"
       className="overlay-card"
     >
       {commands.map((item) => (
@@ -154,6 +215,7 @@ export function useAppHotkeys({
   onToday,
   onInbox,
   onMonth,
+  onWeek,
   onEscape,
   onComplete,
   onCommand,
@@ -163,6 +225,7 @@ export function useAppHotkeys({
   onToday: () => void;
   onInbox: () => void;
   onMonth: () => void;
+  onWeek: () => void;
   onEscape: () => void;
   onComplete: () => void;
   onCommand: () => void;
@@ -222,6 +285,11 @@ export function useAppHotkeys({
         onMonth();
         return;
       }
+      if (event.key.toLowerCase() === "w") {
+        event.preventDefault();
+        onWeek();
+        return;
+      }
       if (event.key.toLowerCase() === "e") {
         event.preventDefault();
         onComplete();
@@ -237,7 +305,7 @@ export function useAppHotkeys({
       window.removeEventListener("keyup", up);
       window.clearTimeout(timer);
     };
-  }, [chord, onCommand, onComplete, onEscape, onInbox, onMonth, onNew, onSearch, onToday]);
+  }, [chord, onCommand, onComplete, onEscape, onInbox, onMonth, onNew, onSearch, onToday, onWeek]);
 }
 
 export { isTypingTarget };

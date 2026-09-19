@@ -29,6 +29,9 @@ pub fn migrate(conn: &Connection) -> DbResult<()> {
             start_date TEXT,
             due_date TEXT,
             all_day INTEGER NOT NULL DEFAULT 1,
+            start_time TEXT,
+            end_time TEXT,
+            kind TEXT NOT NULL DEFAULT 'task',
             priority INTEGER NOT NULL DEFAULT 0,
             status TEXT NOT NULL DEFAULT 'open',
             notes TEXT NOT NULL DEFAULT '',
@@ -54,6 +57,30 @@ pub fn migrate(conn: &Connection) -> DbResult<()> {
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
         ",
     )?;
+    ensure_task_columns(conn)?;
+    Ok(())
+}
+
+fn column_names(conn: &Connection, table: &str) -> DbResult<Vec<String>> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(1))?;
+    rows.collect()
+}
+
+fn ensure_task_columns(conn: &Connection) -> DbResult<()> {
+    let cols = column_names(conn, "tasks")?;
+    if !cols.iter().any(|name| name == "kind") {
+        conn.execute(
+            "ALTER TABLE tasks ADD COLUMN kind TEXT NOT NULL DEFAULT 'task'",
+            [],
+        )?;
+    }
+    if !cols.iter().any(|name| name == "start_time") {
+        conn.execute("ALTER TABLE tasks ADD COLUMN start_time TEXT", [])?;
+    }
+    if !cols.iter().any(|name| name == "end_time") {
+        conn.execute("ALTER TABLE tasks ADD COLUMN end_time TEXT", [])?;
+    }
     Ok(())
 }
 
@@ -106,8 +133,8 @@ fn load_task_tag_ids(conn: &Connection, task_id: &str) -> DbResult<Vec<String>> 
 
 fn load_tasks(conn: &Connection) -> DbResult<Vec<Task>> {
     let mut stmt = conn.prepare(
-        "SELECT id, title, list_id, start_date, due_date, all_day, priority, status,
-                notes, completed_at, sort_order, created_at, updated_at
+        "SELECT id, title, list_id, start_date, due_date, all_day, start_time, end_time, kind,
+                priority, status, notes, completed_at, sort_order, created_at, updated_at
          FROM tasks ORDER BY sort_order, created_at",
     )?;
     let rows = stmt.query_map([], |row| {
@@ -118,14 +145,17 @@ fn load_tasks(conn: &Connection) -> DbResult<Vec<Task>> {
             start_date: row.get(3)?,
             due_date: row.get(4)?,
             all_day: row.get::<_, i64>(5)? != 0,
-            priority: row.get(6)?,
-            status: row.get(7)?,
-            notes: row.get(8)?,
-            completed_at: row.get(9)?,
+            start_time: row.get(6)?,
+            end_time: row.get(7)?,
+            kind: row.get(8)?,
+            priority: row.get(9)?,
+            status: row.get(10)?,
+            notes: row.get(11)?,
+            completed_at: row.get(12)?,
             tag_ids: Vec::new(),
-            sort_order: row.get(10)?,
-            created_at: row.get(11)?,
-            updated_at: row.get(12)?,
+            sort_order: row.get(13)?,
+            created_at: row.get(14)?,
+            updated_at: row.get(15)?,
         })
     })?;
     let mut tasks = Vec::new();
@@ -161,7 +191,25 @@ fn load_settings(conn: &Connection) -> DbResult<Settings> {
     {
         settings.show_completed = value == "true" || value == "1";
     }
+    settings.show_lunar = load_bool_setting(conn, "showLunar", true)?;
+    settings.show_week_numbers = load_bool_setting(conn, "showWeekNumbers", true)?;
+    settings.show_holidays = load_bool_setting(conn, "showHolidays", true)?;
+    settings.show_habits = load_bool_setting(conn, "showHabits", true)?;
     Ok(settings)
+}
+
+fn load_bool_setting(conn: &Connection, key: &str, default: bool) -> DbResult<bool> {
+    if let Some(value) = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = ?1",
+            [key],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?
+    {
+        return Ok(value == "true" || value == "1");
+    }
+    Ok(default)
 }
 
 pub fn save_list(conn: &Connection, list: &List) -> DbResult<()> {
@@ -214,15 +262,18 @@ pub fn delete_tag(conn: &Connection, id: &str) -> DbResult<()> {
 pub fn save_task(conn: &Connection, task: &Task) -> DbResult<()> {
     conn.execute(
         "INSERT INTO tasks (
-            id, title, list_id, start_date, due_date, all_day, priority, status,
-            notes, completed_at, sort_order, created_at, updated_at
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+            id, title, list_id, start_date, due_date, all_day, start_time, end_time, kind,
+            priority, status, notes, completed_at, sort_order, created_at, updated_at
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
          ON CONFLICT(id) DO UPDATE SET
            title = excluded.title,
            list_id = excluded.list_id,
            start_date = excluded.start_date,
            due_date = excluded.due_date,
            all_day = excluded.all_day,
+           start_time = excluded.start_time,
+           end_time = excluded.end_time,
+           kind = excluded.kind,
            priority = excluded.priority,
            status = excluded.status,
            notes = excluded.notes,
@@ -236,6 +287,9 @@ pub fn save_task(conn: &Connection, task: &Task) -> DbResult<()> {
             task.start_date,
             task.due_date,
             if task.all_day { 1 } else { 0 },
+            task.start_time,
+            task.end_time,
+            task.kind,
             task.priority,
             task.status,
             task.notes,
@@ -276,6 +330,19 @@ pub fn save_settings(conn: &Connection, settings: &Settings) -> DbResult<()> {
             "false"
         }],
     )?;
+    save_bool_setting(conn, "showLunar", settings.show_lunar)?;
+    save_bool_setting(conn, "showWeekNumbers", settings.show_week_numbers)?;
+    save_bool_setting(conn, "showHolidays", settings.show_holidays)?;
+    save_bool_setting(conn, "showHabits", settings.show_habits)?;
+    Ok(())
+}
+
+fn save_bool_setting(conn: &Connection, key: &str, value: bool) -> DbResult<()> {
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![key, if value { "true" } else { "false" }],
+    )?;
     Ok(())
 }
 
@@ -291,6 +358,9 @@ mod tests {
             start_date: Some("2026-09-19".into()),
             due_date: Some("2026-09-21".into()),
             all_day: true,
+            start_time: None,
+            end_time: None,
+            kind: "task".into(),
             priority: 2,
             status: "open".into(),
             notes: "hello".into(),
@@ -338,6 +408,10 @@ mod tests {
             &Settings {
                 week_starts_on: 1,
                 show_completed: true,
+                show_lunar: true,
+                show_week_numbers: true,
+                show_holidays: true,
+                show_habits: true,
             },
         )
         .unwrap();
@@ -350,6 +424,59 @@ mod tests {
         assert_eq!(snap.tasks[0].due_date.as_deref(), Some("2026-09-21"));
         assert!(snap.settings.show_completed);
         assert_eq!(snap.settings.week_starts_on, 1);
+        assert_eq!(snap.tasks[0].kind, "task");
+        assert!(snap.settings.show_lunar);
+    }
+
+    #[test]
+    fn migrates_legacy_task_columns() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE lists (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                emoji TEXT NOT NULL DEFAULT '',
+                color TEXT NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE tasks (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                list_id TEXT,
+                start_date TEXT,
+                due_date TEXT,
+                all_day INTEGER NOT NULL DEFAULT 1,
+                priority INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'open',
+                notes TEXT NOT NULL DEFAULT '',
+                completed_at TEXT,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE task_tags (
+                task_id TEXT NOT NULL,
+                tag_id TEXT NOT NULL,
+                PRIMARY KEY (task_id, tag_id)
+            );
+            INSERT INTO tasks (
+                id, title, list_id, start_date, due_date, all_day, priority, status,
+                notes, completed_at, sort_order, created_at, updated_at
+            ) VALUES (
+                'legacy', '旧库任务', NULL, '2026-09-19', '2026-09-19', 1, 0, 'open',
+                '', NULL, 0, 't', 't'
+            );
+            ",
+        )
+        .unwrap();
+        migrate(&conn).unwrap();
+        let snap = load_snapshot(&conn).unwrap();
+        assert_eq!(snap.tasks[0].title, "旧库任务");
+        assert_eq!(snap.tasks[0].kind, "task");
+        assert_eq!(snap.tasks[0].start_time, None);
     }
 
     #[test]

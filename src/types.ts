@@ -1,5 +1,7 @@
 export type TaskStatus = "open" | "completed" | "abandoned" | "trash";
 
+export type TaskKind = "task" | "habit";
+
 export type List = {
   id: string;
   name: string;
@@ -24,6 +26,9 @@ export type Task = {
   startDate: string | null;
   dueDate: string | null;
   allDay: boolean;
+  startTime: string | null;
+  endTime: string | null;
+  kind: TaskKind;
   priority: 0 | 1 | 2 | 3;
   status: TaskStatus;
   notes: string;
@@ -37,6 +42,10 @@ export type Task = {
 export type Settings = {
   weekStartsOn: 0 | 1;
   showCompleted: boolean;
+  showLunar: boolean;
+  showWeekNumbers: boolean;
+  showHolidays: boolean;
+  showHabits: boolean;
 };
 
 export type Snapshot = {
@@ -49,6 +58,10 @@ export type Snapshot = {
 export const DEFAULT_SETTINGS: Settings = {
   weekStartsOn: 1,
   showCompleted: false,
+  showLunar: true,
+  showWeekNumbers: true,
+  showHolidays: true,
+  showHabits: true,
 };
 
 export const LIST_COLORS = [
@@ -77,8 +90,12 @@ export type Draft = {
   startDate: string | null;
   dueDate: string | null;
   tagIds: string[];
-  source: "list" | "cell" | "toolbar";
+  source: "list" | "cell" | "toolbar" | "slot";
   anchorDate?: string;
+  allDay?: boolean;
+  startTime?: string | null;
+  endTime?: string | null;
+  kind?: TaskKind;
 };
 
 export const EMOJI_CHOICES = [
@@ -93,3 +110,33 @@ export const EMOJI_CHOICES = [
   "⭐",
   "🧠",
 ] as const;
+
+export function isHabit(task: { kind?: string | null }): boolean {
+  return task.kind === "habit";
+}
+
+export function hydrateSettings(raw?: Partial<Settings> | null): Settings {
+  return { ...DEFAULT_SETTINGS, ...raw };
+}
+
+export function hydrateTask(raw: Partial<Task> & Pick<Task, "id" | "title">): Task {
+  return {
+    id: raw.id,
+    title: raw.title,
+    listId: raw.listId ?? null,
+    startDate: raw.startDate ?? null,
+    dueDate: raw.dueDate ?? null,
+    allDay: raw.allDay ?? true,
+    startTime: raw.startTime ?? null,
+    endTime: raw.endTime ?? null,
+    kind: raw.kind === "habit" ? "habit" : "task",
+    priority: raw.priority ?? 0,
+    status: raw.status ?? "open",
+    notes: raw.notes ?? "",
+    completedAt: raw.completedAt ?? null,
+    tagIds: raw.tagIds ?? [],
+    sortOrder: raw.sortOrder ?? 0,
+    createdAt: raw.createdAt ?? "",
+    updatedAt: raw.updatedAt ?? "",
+  };
+}

@@ -153,3 +153,15 @@ export function monthTitle(monthDate: Date): string {
     month: "long",
   }).format(monthDate);
 }
+
+export function weekDays(anchor: Date, weekStartsOn: WeekStartsOn): string[] {
+  const start = startOfWeek(startOfDay(anchor), { weekStartsOn });
+  return eachDayOfInterval({ start, end: addDays(start, 6) }).map(toIsoDate);
+}
+
+export function weekRangeLabel(days: string[]): string {
+  if (days.length === 0) return "";
+  const first = fromIsoDate(days[0]);
+  const last = fromIsoDate(days[days.length - 1]);
+  return `${format(first, "M月d日")} – ${format(last, "M月d日")}`;
+}
