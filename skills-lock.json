@@ -373,6 +373,12 @@
       "skillPath": "pm-product-strategy/skills/swot-analysis/SKILL.md",
       "computedHash": "e54e0a983dfb825ff3f9008efae0611c895f93d7a13140a53c5331678f2d4ec5"
     },
+    "tauri-v2": {
+      "source": "nodnarbnitram/claude-code-extensions",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/tauri-v2/SKILL.md",
+      "computedHash": "377c61c46cf48c35b942042bc8abb9a039049a47f37d7f12b4f491d012777490"
+    },
     "test-scenarios": {
       "source": "phuryn/pm-skills",
       "sourceType": "github",
@@ -408,6 +414,18 @@
       "sourceType": "github",
       "skillPath": "pm-product-strategy/skills/value-proposition/SKILL.md",
       "computedHash": "2a2da3df17301089d6dbd9b39392c72e2723117f01291d6d28020d80a6840a5e"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
     },
     "wwas": {
       "source": "phuryn/pm-skills",
