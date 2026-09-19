@@ -270,6 +270,30 @@ select,
   color: var(--muted);
 }
 
+.side-fold-trigger {
+  width: calc(100% - 16px);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.side-fold-trigger:hover {
+  color: var(--ink);
+}
+
+.side-fold-panel {
+  height: var(--collapsible-panel-height);
+  overflow: hidden;
+}
+
+.side-fold-panel[data-closed] {
+  display: none;
+}
+
 .side-link,
 .side-item {
   display: flex;

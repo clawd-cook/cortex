@@ -1,4 +1,5 @@
 import { Button } from "@base-ui/react/button";
+import { Collapsible } from "@base-ui/react/collapsible";
 import { ContextMenu } from "@base-ui/react/context-menu";
 import { Field } from "@base-ui/react/field";
 import { Form } from "@base-ui/react/form";
@@ -20,6 +21,7 @@ import {
   IconHabit,
   IconInbox,
   IconPlus,
+  IconSearch,
   IconSettings,
   IconSun,
   IconTrash,
@@ -423,6 +425,13 @@ export function Sidebar({
             <span>摘要</span>
           </a>
           <a
+            className={`side-link${isRoute(route, "search") ? " is-active" : ""}`}
+            href="#/search"
+          >
+            <IconSearch />
+            <span>搜索</span>
+          </a>
+          <a
             className={`side-link${isRoute(route, "habits") ? " is-active" : ""}`}
             href="#/habits"
           >
@@ -464,32 +473,43 @@ export function Sidebar({
           ))}
         </section>
 
-        <section className="side-section" aria-label="归档">
-          <div className="side-heading">归档</div>
-          <a
-            className={`side-link${isRoute(route, "completed") ? " is-active" : ""}`}
-            href="#/completed"
-          >
-            <IconCheck />
-            <span>已完成</span>
-            <b className="count">{openCounts.completed}</b>
-          </a>
-          <a
-            className={`side-link${isRoute(route, "abandoned") ? " is-active" : ""}`}
-            href="#/abandoned"
-          >
-            <span>已放弃</span>
-            <b className="count">{openCounts.abandoned}</b>
-          </a>
-          <a
-            className={`side-link${isRoute(route, "trash") ? " is-active" : ""}`}
-            href="#/trash"
-          >
-            <IconTrash />
-            <span>垃圾桶</span>
-            <b className="count">{openCounts.trash}</b>
-          </a>
-        </section>
+        <Collapsible.Root
+          className="side-section"
+          defaultOpen={
+            route.name === "completed" ||
+            route.name === "abandoned" ||
+            route.name === "trash"
+          }
+        >
+          <Collapsible.Trigger className="side-heading side-fold-trigger" aria-label="归档">
+            归档
+          </Collapsible.Trigger>
+          <Collapsible.Panel className="side-fold-panel" hiddenUntilFound>
+            <a
+              className={`side-link${isRoute(route, "completed") ? " is-active" : ""}`}
+              href="#/completed"
+            >
+              <IconCheck />
+              <span>已完成</span>
+              <b className="count">{openCounts.completed}</b>
+            </a>
+            <a
+              className={`side-link${isRoute(route, "abandoned") ? " is-active" : ""}`}
+              href="#/abandoned"
+            >
+              <span>已放弃</span>
+              <b className="count">{openCounts.abandoned}</b>
+            </a>
+            <a
+              className={`side-link${isRoute(route, "trash") ? " is-active" : ""}`}
+              href="#/trash"
+            >
+              <IconTrash />
+              <span>垃圾桶</span>
+              <b className="count">{openCounts.trash}</b>
+            </a>
+          </Collapsible.Panel>
+        </Collapsible.Root>
       </AppScrollArea>
       {cortex.settings.showMiniMonth || route.name === "calendar" ? (
         <MiniMonth monthDate={monthDate} onMonthDate={onMonthDate} />
