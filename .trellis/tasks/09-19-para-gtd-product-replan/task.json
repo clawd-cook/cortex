@@ -1,0 +1,29 @@
+{
+  "id": "para-gtd-product-replan",
+  "name": "para-gtd-product-replan",
+  "title": "PARA+GTD product replan for programmer days",
+  "description": "Replan Cortex features and presentation around PARA + GTD + programmer daily work; leave TickTick-shaped IA behind. Planning-only: PRD, design, phased roadmap.",
+  "status": "planning",
+  "dev_type": null,
+  "scope": "PRD, design, IA, PARA/GTD, presentation",
+  "package": null,
+  "priority": "P2",
+  "creator": "cloud-agent",
+  "assignee": "cloud-agent",
+  "createdAt": "2026-09-19",
+  "completedAt": null,
+  "branch": "cursor/para-gtd-product-replan-7d67",
+  "base_branch": "master",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "09-19-para-semantics-clarify",
+    "09-19-para-workflow-shell"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}
