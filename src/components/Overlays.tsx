@@ -1,8 +1,10 @@
+import { Input } from "@base-ui/react/input";
 import { useEffect, useMemo, useState } from "react";
 import { searchByTitle } from "../lib/filters";
 import { toHash } from "../lib/route";
 import { useCortex } from "../state/store";
 import type { Settings } from "../types";
+import { AppDialog, AppSelect, AppSwitch, Button } from "./ui";
 
 function isTypingTarget(target: EventTarget | null): boolean {
   return (
@@ -28,48 +30,44 @@ export function SearchOverlay({
   const { tasks, lists } = useCortex();
   const results = useMemo(() => searchByTitle(tasks, query).slice(0, 20), [query, tasks]);
 
-  if (!open) return null;
   return (
-    <div className="overlay" role="presentation" onClick={onClose}>
-      <div
-        className="overlay-card"
-        role="dialog"
-        aria-labelledby="search-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 id="search-title" className="live">
-          搜索标题
-        </h2>
-        <input
-          className="search-input"
-          name="search"
-          autoComplete="off"
-          autoFocus
-          placeholder="搜索任务标题…"
-          value={query}
-          onChange={(event) => onQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") onClose();
-          }}
-        />
-        <div aria-live="polite">
-          {query.trim() && results.length === 0 ? <p>没有匹配的标题。</p> : null}
-        </div>
-        {results.map((task) => {
-          const href = task.listId
-            ? toHash({ name: "list", listId: task.listId, taskId: task.id })
-            : toHash({ name: "inbox", taskId: task.id });
-          return (
-            <a key={task.id} className="result" href={href} onClick={onClose}>
-              {task.title}
-              <span className="chip">
-                {lists.find((list) => list.id === task.listId)?.name ?? "收集箱"}
-              </span>
-            </a>
-          );
-        })}
+    <AppDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title="搜索标题"
+      hideTitle
+      className="overlay-card"
+    >
+      <Input
+        className="search-input"
+        name="search"
+        autoComplete="off"
+        placeholder="搜索任务标题…"
+        value={query}
+        onValueChange={onQuery}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") onClose();
+        }}
+      />
+      <div aria-live="polite">
+        {query.trim() && results.length === 0 ? <p>没有匹配的标题。</p> : null}
       </div>
-    </div>
+      {results.map((task) => {
+        const href = task.listId
+          ? toHash({ name: "list", listId: task.listId, taskId: task.id })
+          : toHash({ name: "inbox", taskId: task.id });
+        return (
+          <a key={task.id} className="result" href={href} onClick={onClose}>
+            {task.title}
+            <span className="chip">
+              {lists.find((list) => list.id === task.listId)?.name ?? "收集箱"}
+            </span>
+          </a>
+        );
+      })}
+    </AppDialog>
   );
 }
 
@@ -81,51 +79,40 @@ export function SettingsDialog({
   onClose: () => void;
 }) {
   const { settings, updateSettings } = useCortex();
-  if (!open) return null;
 
   const patch = (partial: Partial<Settings>) => {
     void updateSettings({ ...settings, ...partial });
   };
 
   return (
-    <div className="overlay" role="presentation" onClick={onClose}>
-      <div
-        className="dialog-card"
-        role="dialog"
-        aria-labelledby="settings-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 id="settings-title">设置</h2>
-        <label className="field">
-          <span>星期开始于</span>
-          <select
-            name="week-starts-on"
-            value={settings.weekStartsOn}
-            onChange={(event) =>
-              patch({ weekStartsOn: Number(event.target.value) as 0 | 1 })
-            }
-          >
-            <option value={1}>周一</option>
-            <option value={0}>周日</option>
-          </select>
-        </label>
-        <label className="field" style={{ gridTemplateColumns: "auto 1fr", alignItems: "center" }}>
-          <input
-            type="checkbox"
-            name="show-completed"
-            checked={settings.showCompleted}
-            onChange={(event) => patch({ showCompleted: event.target.checked })}
-          />
-          <span>显示已完成（列表折起来，月历上仍能看见）</span>
-        </label>
-        <p className="group-label">
-          数据存在这台电脑。关掉 Cortex 再打开，清单和任务都还在。
-        </p>
-        <button type="button" className="primary-btn" onClick={onClose}>
-          完成
-        </button>
-      </div>
-    </div>
+    <AppDialog open={open} onOpenChange={(next) => { if (!next) onClose(); }} title="设置">
+      <label className="field">
+        <span>星期开始于</span>
+        <AppSelect
+          name="week-starts-on"
+          value={String(settings.weekStartsOn)}
+          onValueChange={(value) => patch({ weekStartsOn: Number(value) as 0 | 1 })}
+          items={[
+            { value: "1", label: "周一" },
+            { value: "0", label: "周日" },
+          ]}
+        />
+      </label>
+      <label className="field" style={{ gridTemplateColumns: "auto 1fr", alignItems: "center" }}>
+        <AppSwitch
+          name="show-completed"
+          checked={settings.showCompleted}
+          onCheckedChange={(checked) => patch({ showCompleted: checked })}
+        />
+        <span>显示已完成（列表折起来，月历上仍能看见）</span>
+      </label>
+      <p className="group-label">
+        数据存在这台电脑。关掉 Cortex 再打开，清单和任务都还在。
+      </p>
+      <Button type="button" className="primary-btn" onClick={onClose}>
+        完成
+      </Button>
+    </AppDialog>
   );
 }
 
@@ -136,7 +123,6 @@ export function CommandPalette({
   open: boolean;
   onClose: () => void;
 }) {
-  if (!open) return null;
   const commands = [
     { href: "#/smart/today", label: "今天" },
     { href: "#/lists/inbox", label: "收集箱" },
@@ -144,22 +130,21 @@ export function CommandPalette({
     { href: "#/search", label: "搜索标题" },
   ];
   return (
-    <div className="overlay" role="presentation" onClick={onClose}>
-      <div
-        className="overlay-card"
-        role="dialog"
-        aria-labelledby="cmd-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 id="cmd-title">指令</h2>
-        <p className="group-label">V1 占位。选一项即跳转。</p>
-        {commands.map((item) => (
-          <a key={item.href} className="result" href={item.href} onClick={onClose}>
-            {item.label}
-          </a>
-        ))}
-      </div>
-    </div>
+    <AppDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title="指令"
+      description="V1 占位。选一项即跳转。"
+      className="overlay-card"
+    >
+      {commands.map((item) => (
+        <a key={item.href} className="result" href={item.href} onClick={onClose}>
+          {item.label}
+        </a>
+      ))}
+    </AppDialog>
   );
 }
 

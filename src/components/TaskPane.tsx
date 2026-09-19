@@ -1,5 +1,13 @@
+import { Button } from "@base-ui/react/button";
+import { Collapsible } from "@base-ui/react/collapsible";
+import { Field } from "@base-ui/react/field";
+import { Form } from "@base-ui/react/form";
+import { Input } from "@base-ui/react/input";
+import { Toggle } from "@base-ui/react/toggle";
+import { ToggleGroup } from "@base-ui/react/toggle-group";
+import { Toolbar } from "@base-ui/react/toolbar";
 import { useMemo, useState } from "react";
-import { IconCheck, IconInbox } from "../icons";
+import { IconInbox } from "../icons";
 import { addIsoDays, formatChip, normalizeIsoDate, todayIso } from "../lib/dates";
 import {
   completedInList,
@@ -16,6 +24,7 @@ import type { Route } from "../lib/route";
 import { withTask } from "../lib/route";
 import { useCortex } from "../state/store";
 import type { Draft, Task, TaskStatus } from "../types";
+import { AppScrollArea, AppSelect, CheckControl, ConfirmDialog } from "./ui";
 
 const PRIORITY_LABEL = ["无", "低", "中", "高"] as const;
 
@@ -121,27 +130,22 @@ export function TaskPane({
         {route.name === "completed" ||
         route.name === "abandoned" ||
         route.name === "trash" ? null : (
-          <form
+          <Form
             className="composer"
             onSubmit={(event) => {
               event.preventDefault();
               void onCommitDraft();
             }}
           >
-            <input
+            <Input
               name="new-task"
               autoComplete="off"
               placeholder={composerPlaceholder}
               value={draft?.source === "list" || draft?.source === "toolbar" ? draft.title : ""}
-              onChange={(event) =>
+              onValueChange={(title) =>
                 onDraft({
-                  title: event.target.value,
-                  listId:
-                    route.name === "list"
-                      ? route.listId
-                      : route.name === "tag"
-                        ? null
-                        : null,
+                  title,
+                  listId: route.name === "list" ? route.listId : null,
                   startDate:
                     route.name === "today"
                       ? todayIso()
@@ -166,12 +170,12 @@ export function TaskPane({
               }}
               aria-label="新任务标题"
             />
-            <button className="primary-btn" type="submit">
+            <Button className="primary-btn" type="submit">
               添加
-            </button>
-          </form>
+            </Button>
+          </Form>
         )}
-        <div className="task-scroll">
+        <AppScrollArea className="task-scroll">
           {route.name !== "search" && grouped.every((group) => group.tasks.length === 0) ? (
             <div className="empty">
               <IconInbox />
@@ -200,19 +204,23 @@ export function TaskPane({
           {cortex.settings.showCompleted &&
           completed.length > 0 &&
           route.name !== "completed" ? (
-            <details className="fold">
-              <summary>已完成 · {completed.length}</summary>
-              {completed.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  selected={task.id === selectedId}
-                  onSelect={() => onNavigate(withTask(route, task.id))}
-                />
-              ))}
-            </details>
+            <Collapsible.Root className="fold" defaultOpen={false}>
+              <Collapsible.Trigger className="fold-trigger">
+                已完成 · {completed.length}
+              </Collapsible.Trigger>
+              <Collapsible.Panel className="fold-panel" hiddenUntilFound>
+                {completed.map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    selected={task.id === selectedId}
+                    onSelect={() => onNavigate(withTask(route, task.id))}
+                  />
+                ))}
+              </Collapsible.Panel>
+            </Collapsible.Root>
           ) : null}
-        </div>
+        </AppScrollArea>
       </section>
       <TaskDetail task={selected} onClose={() => onNavigate(withTask(route, undefined))} />
     </>
@@ -234,19 +242,13 @@ function TaskRow({
 
   return (
     <div className={`task-row${selected ? " is-selected" : ""}${task.status === "completed" ? " is-done" : ""}`}>
-      <button
-        type="button"
-        className={`check${task.status === "completed" ? " is-on" : ""}`}
-        aria-label={task.status === "completed" ? "标为未完成" : "完成任务"}
-        onClick={() =>
-          void cortex.setTaskStatus(
-            task,
-            task.status === "completed" ? "open" : "completed",
-          )
+      <CheckControl
+        checked={task.status === "completed"}
+        label={task.status === "completed" ? "标为未完成" : "完成任务"}
+        onCheckedChange={(checked) =>
+          void cortex.setTaskStatus(task, checked ? "completed" : "open")
         }
-      >
-        <IconCheck />
-      </button>
+      />
       <button type="button" onClick={onSelect}>
         <span className="task-title">{task.title}</span>
         <span className="task-meta">
@@ -267,7 +269,7 @@ function TaskRow({
 
 export function TaskDetail({ task, onClose }: { task: Task | null; onClose: () => void }) {
   const cortex = useCortex();
-  const [confirmTrash, setConfirmTrash] = useState(false);
+  const [confirmKind, setConfirmKind] = useState<"trash" | "destroy" | null>(null);
 
   if (!task) {
     return (
@@ -290,41 +292,44 @@ export function TaskDetail({ task, onClose }: { task: Task | null; onClose: () =
     void cortex.setTaskStatus(task, status);
   };
 
+  const listItems = [
+    { value: "inbox", label: "收集箱" },
+    ...cortex.lists.map((list) => ({
+      value: list.id,
+      label: `${list.emoji} ${list.name}`,
+    })),
+  ];
+
   return (
     <aside className="detail" aria-label="任务详情">
       <div className="detail-top">
-        <button
-          type="button"
-          className={`check${task.status === "completed" ? " is-on" : ""}`}
-          aria-label={task.status === "completed" ? "标为未完成" : "完成任务"}
-          onClick={() => setStatus(task.status === "completed" ? "open" : "completed")}
-        >
-          <IconCheck />
-        </button>
-        <button type="button" className="ghost-btn" onClick={onClose}>
+        <CheckControl
+          checked={task.status === "completed"}
+          label={task.status === "completed" ? "标为未完成" : "完成任务"}
+          onCheckedChange={(checked) => setStatus(checked ? "completed" : "open")}
+        />
+        <Button type="button" className="ghost-btn" onClick={onClose}>
           关闭
-        </button>
+        </Button>
       </div>
-      <label className="field">
-        <span className="live">标题</span>
-        <input
+      <Field.Root className="field" name="task-title">
+        <Field.Label className="live">标题</Field.Label>
+        <Input
           className="title-input"
-          name="task-title"
           autoComplete="off"
           value={task.title}
-          onChange={(event) => patch({ title: event.target.value })}
+          onValueChange={(title) => patch({ title })}
         />
-      </label>
-      <label className="field">
-        <span>开始</span>
-        <input
+      </Field.Root>
+      <Field.Root className="field" name="start-date">
+        <Field.Label>开始</Field.Label>
+        <Field.Control
           type="date"
-          name="start-date"
           min="1970-01-01"
           max="2100-12-31"
           value={task.startDate ?? ""}
           onChange={(event) => {
-            const raw = event.target.value;
+            const raw = event.currentTarget.value;
             if (!raw) {
               patch({ startDate: null });
               return;
@@ -337,17 +342,16 @@ export function TaskDetail({ task, onClose }: { task: Task | null; onClose: () =
             });
           }}
         />
-      </label>
-      <label className="field">
-        <span>到期</span>
-        <input
+      </Field.Root>
+      <Field.Root className="field" name="due-date">
+        <Field.Label>到期</Field.Label>
+        <Field.Control
           type="date"
-          name="due-date"
           min="1970-01-01"
           max="2100-12-31"
           value={task.dueDate ?? ""}
           onChange={(event) => {
-            const raw = event.target.value;
+            const raw = event.currentTarget.value;
             if (!raw) {
               patch({ dueDate: null });
               return;
@@ -360,161 +364,157 @@ export function TaskDetail({ task, onClose }: { task: Task | null; onClose: () =
             });
           }}
         />
-      </label>
+      </Field.Root>
       <div className="field">
         <span>快捷日期</span>
-        <div className="priority-row">
-          <button
-            type="button"
+        <Toolbar.Root className="priority-row" aria-label="快捷日期">
+          <Toolbar.Button
+            className="chip-toggle"
             onClick={() => {
               const day = todayIso();
               patch({ startDate: day, dueDate: day });
             }}
           >
             今天
-          </button>
-          <button
-            type="button"
+          </Toolbar.Button>
+          <Toolbar.Button
+            className="chip-toggle"
             onClick={() => {
               const day = addIsoDays(todayIso(), 1);
               patch({ startDate: day, dueDate: day });
             }}
           >
             明天
-          </button>
-          <button
-            type="button"
+          </Toolbar.Button>
+          <Toolbar.Button
+            className="chip-toggle"
             onClick={() => {
               const start = todayIso();
               patch({ startDate: start, dueDate: addIsoDays(start, 2) });
             }}
           >
             跨三天
-          </button>
-          <button type="button" onClick={() => patch({ startDate: null, dueDate: null })}>
+          </Toolbar.Button>
+          <Toolbar.Button
+            className="chip-toggle"
+            onClick={() => patch({ startDate: null, dueDate: null })}
+          >
             清除日期
-          </button>
-        </div>
+          </Toolbar.Button>
+        </Toolbar.Root>
       </div>
       <div className="field">
         <span>优先级</span>
-        <div className="priority-row">
-          {PRIORITY_LABEL.map((label, index) => (
-            <button
-              key={label}
-              type="button"
-              className={task.priority === index ? "is-on" : ""}
-              onClick={() => patch({ priority: index as Task["priority"] })}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <label className="field">
-        <span>所属清单</span>
-        <select
-          name="list"
-          value={task.listId ?? ""}
-          onChange={(event) => patch({ listId: event.target.value || null })}
+        <ToggleGroup
+          className="priority-row"
+          aria-label="优先级"
+          value={[String(task.priority)]}
+          onValueChange={(values) => {
+            const next = values[0];
+            if (next == null) return;
+            patch({ priority: Number(next) as Task["priority"] });
+          }}
         >
-          <option value="">收集箱</option>
-          {cortex.lists.map((list) => (
-            <option key={list.id} value={list.id}>
-              {list.emoji} {list.name}
-            </option>
+          {PRIORITY_LABEL.map((label, index) => (
+            <Toggle key={label} value={String(index)} className="chip-toggle">
+              {label}
+            </Toggle>
           ))}
-        </select>
-      </label>
+        </ToggleGroup>
+      </div>
+      <Field.Root className="field" name="list">
+        <Field.Label>所属清单</Field.Label>
+        <AppSelect
+          name="list"
+          value={task.listId ?? "inbox"}
+          onValueChange={(value) => patch({ listId: value === "inbox" ? null : value })}
+          items={listItems}
+        />
+      </Field.Root>
       <div className="field">
         <span>标签</span>
-        <div className="tag-picks">
-          {cortex.tags.map((tag) => {
-            const on = task.tagIds.includes(tag.id);
-            return (
-              <button
-                key={tag.id}
-                type="button"
-                className={`pill${on ? "" : ""}`}
-                style={{ background: on ? tag.color : "#d6d3cd", color: on ? "white" : "#3f3a34" }}
-                onClick={() =>
-                  patch({
-                    tagIds: on
-                      ? task.tagIds.filter((id) => id !== tag.id)
-                      : [...task.tagIds, tag.id],
-                  })
-                }
-              >
-                {tag.name}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <label className="field">
-        <span>备注</span>
-        <textarea
-          className="notes-input"
-          name="notes"
-          placeholder="输入内容…"
-          value={task.notes}
-          onChange={(event) => patch({ notes: event.target.value })}
-        />
-      </label>
-      <div className="toolbar">
-        {task.status !== "abandoned" ? (
-          <button type="button" className="ghost-btn" onClick={() => setStatus("abandoned")}>
-            放弃
-          </button>
+        {cortex.tags.length === 0 ? (
+          <p className="group-label">还没有标签。</p>
         ) : (
-          <button type="button" className="ghost-btn" onClick={() => setStatus("open")}>
+          <ToggleGroup
+            className="tag-picks"
+            multiple
+            aria-label="标签"
+            value={task.tagIds}
+            onValueChange={(tagIds) => patch({ tagIds })}
+          >
+            {cortex.tags.map((tag) => {
+              const on = task.tagIds.includes(tag.id);
+              return (
+                <Toggle
+                  key={tag.id}
+                  value={tag.id}
+                  className="pill"
+                  style={{ background: on ? tag.color : "#d6d3cd", color: on ? "white" : "#3f3a34" }}
+                >
+                  {tag.name}
+                </Toggle>
+              );
+            })}
+          </ToggleGroup>
+        )}
+      </div>
+      <Field.Root className="field" name="notes">
+        <Field.Label>备注</Field.Label>
+        <Field.Control
+          className="notes-input"
+          render={<textarea placeholder="输入内容…" />}
+          value={task.notes}
+          onValueChange={(notes) => patch({ notes })}
+        />
+      </Field.Root>
+      <Toolbar.Root className="toolbar" aria-label="任务状态">
+        {task.status !== "abandoned" ? (
+          <Toolbar.Button className="ghost-btn" onClick={() => setStatus("abandoned")}>
+            放弃
+          </Toolbar.Button>
+        ) : (
+          <Toolbar.Button className="ghost-btn" onClick={() => setStatus("open")}>
             恢复
-          </button>
+          </Toolbar.Button>
         )}
         {task.status !== "trash" ? (
-          <button type="button" className="ghost-btn danger-btn" onClick={() => setConfirmTrash(true)}>
+          <Toolbar.Button className="ghost-btn danger-btn" onClick={() => setConfirmKind("trash")}>
             移入垃圾桶
-          </button>
+          </Toolbar.Button>
         ) : (
           <>
-            <button type="button" className="ghost-btn" onClick={() => setStatus("open")}>
+            <Toolbar.Button className="ghost-btn" onClick={() => setStatus("open")}>
               还原
-            </button>
-            <button
-              type="button"
-              className="ghost-btn danger-btn"
-              onClick={() => {
-                if (confirm("彻底删除这条任务？")) void cortex.removeTask(task.id);
-              }}
-            >
+            </Toolbar.Button>
+            <Toolbar.Button className="ghost-btn danger-btn" onClick={() => setConfirmKind("destroy")}>
               彻底删除
-            </button>
+            </Toolbar.Button>
           </>
         )}
-      </div>
-      {confirmTrash ? (
-        <div className="overlay" role="presentation" onClick={() => setConfirmTrash(false)}>
-          <div className="dialog-card" role="dialog" aria-labelledby="trash-title" onClick={(e) => e.stopPropagation()}>
-            <h2 id="trash-title">移入垃圾桶？</h2>
-            <p>完成不是删除。垃圾桶里的任务还可以还原。</p>
-            <div className="toolbar">
-              <button type="button" className="ghost-btn" onClick={() => setConfirmTrash(false)}>
-                留下
-              </button>
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={() => {
-                  setStatus("trash");
-                  setConfirmTrash(false);
-                }}
-              >
-                移入垃圾桶
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      </Toolbar.Root>
+      <ConfirmDialog
+        open={confirmKind === "trash"}
+        onOpenChange={(open) => {
+          if (!open) setConfirmKind(null);
+        }}
+        title="移入垃圾桶？"
+        description="完成不是删除。垃圾桶里的任务还可以还原。"
+        confirmLabel="移入垃圾桶"
+        onConfirm={() => setStatus("trash")}
+      />
+      <ConfirmDialog
+        open={confirmKind === "destroy"}
+        onOpenChange={(open) => {
+          if (!open) setConfirmKind(null);
+        }}
+        title="彻底删除？"
+        description="彻底删除这条任务？此操作不能撤销。"
+        confirmLabel="彻底删除"
+        onConfirm={() => {
+          void cortex.removeTask(task.id);
+        }}
+      />
     </aside>
   );
 }
