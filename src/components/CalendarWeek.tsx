@@ -98,6 +98,7 @@ export function CalendarWeek({
   const todayIndex = days.indexOf(today);
 
   return (
+    <>
     <section className="main calendar-wrap" aria-labelledby="cal-title">
       <Toolbar.Root className="cal-toolbar" aria-label="周视图">
         <Toolbar.Button className="icon-btn" aria-label="上一周" onClick={() => onWeekDate(addWeeks(weekDate, -1))}>
@@ -340,6 +341,7 @@ export function CalendarWeek({
           </div>
         </div>
       </div>
+    </section>
       <aside className="schedule week-schedule" aria-label="安排任务">
         <h2>安排任务</h2>
         <p className="group-label">没有日期的任务点「添加」排到今天，或去月历里拖进某一天。</p>
@@ -353,6 +355,6 @@ export function CalendarWeek({
           ))
         )}
       </aside>
-    </section>
+    </>
   );
 }

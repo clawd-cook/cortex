@@ -87,7 +87,8 @@ export function CalendarMonth({
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
   const undated = undatedOpenTasks(cortex.tasks).filter(matchesList);
-  const weekKey = weekDays(monthDate, cortex.settings.weekStartsOn)[0];
+  const weekAnchor = isSameMonth(monthDate, new Date()) ? new Date() : monthDate;
+  const weekKey = weekDays(weekAnchor, cortex.settings.weekStartsOn)[0];
   const monthKey = format(monthDate, "yyyy-MM");
   const today = todayIso();
 
