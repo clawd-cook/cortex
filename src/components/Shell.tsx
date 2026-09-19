@@ -650,7 +650,7 @@ function MiniMonth({
               key={iso}
               className={`mini-day${iso === today ? " is-today" : ""}${
                 isSameMonth(date, monthDate) ? "" : " is-out"
-              }`}
+              }${marked.has(iso) ? " is-marked" : ""}`}
               href={`#/calendar/month?month=${format(date, "yyyy-MM")}`}
               aria-label={iso}
               title={marked.has(iso) ? "有任务" : undefined}
