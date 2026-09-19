@@ -12,13 +12,13 @@
 - [x] 收集箱语义：**2 显式未处理**
 - [x] 设日期 / 日历拖拽：**自动 `processed = true`（排期即澄清）**
 - [x] 拆分：**先 A 后 B**；子任务 PRD 已写明硬依赖
-- [ ] **用户审阅**本规划包后，批准启动 Phase A（`09-19-para-semantics-clarify`）
+- [x] **用户审阅**本规划包后，批准启动 Phase A（`09-19-para-semantics-clarify`）— 2026-09-19 采纳
 
-退出标准：用户明确同意规划；再对 Phase A 执行 `task.py start`（父任务可保持规划权威或标完成）。
+退出标准：✓ 用户已同意；Phase A 已 `task.py start`。
 
 ### 子任务
 
-1. `09-19-para-semantics-clarify` — 语义闭环（可先合并）
+1. `09-19-para-semantics-clarify` — 语义闭环（进行中）
 2. `09-19-para-workflow-shell` — 换壳（依赖 1）
 
 ---
