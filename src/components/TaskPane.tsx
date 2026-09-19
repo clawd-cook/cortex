@@ -425,7 +425,7 @@ export function TaskDetail({
   onNavigate?: (route: Route) => void;
 }) {
   const cortex = useCortex();
-  const [confirmKind, setConfirmKind] = useState<"trash" | "destroy" | null>(null);
+  const [confirmKind, setConfirmKind] = useState<"trash" | "destroy" | "abandoned" | null>(null);
 
   if (!task) {
     return (
@@ -637,6 +637,7 @@ export function TaskDetail({
         <Field.Label>所属项目</Field.Label>
         <AppSelect
           name="list"
+          aria-label="所属项目"
           value={task.listId ?? "none"}
           onValueChange={(value) => patch({ listId: value === "none" ? null : value })}
           items={listItems}
@@ -681,8 +682,8 @@ export function TaskDetail({
                 <Toggle
                   key={tag.id}
                   value={tag.id}
-                  className="pill"
-                  style={{ background: on ? tag.color : "#d6d3cd", color: on ? "white" : "#3f3a34" }}
+                  className={`pill${on ? "" : " is-off"}`}
+                  style={on ? { background: tag.color } : undefined}
                 >
                   {tag.name}
                 </Toggle>
@@ -702,7 +703,7 @@ export function TaskDetail({
       </Field.Root>
       <Toolbar.Root className="toolbar" aria-label="任务状态">
         {task.status !== "abandoned" ? (
-          <Toolbar.Button className="ghost-btn" onClick={() => setStatus("abandoned")}>
+          <Toolbar.Button className="ghost-btn" onClick={() => setConfirmKind("abandoned")}>
             放弃
           </Toolbar.Button>
         ) : (
@@ -725,6 +726,16 @@ export function TaskDetail({
           </>
         )}
       </Toolbar.Root>
+      <ConfirmDialog
+        open={confirmKind === "abandoned"}
+        onOpenChange={(open) => {
+          if (!open) setConfirmKind(null);
+        }}
+        title="放弃这条下一步？"
+        description="放弃后可以在「已放弃」里恢复。"
+        confirmLabel="放弃"
+        onConfirm={() => setStatus("abandoned")}
+      />
       <ConfirmDialog
         open={confirmKind === "trash"}
         onOpenChange={(open) => {

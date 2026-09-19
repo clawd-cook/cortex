@@ -1,6 +1,5 @@
-import { format } from "date-fns";
 import { isHabit, type Task } from "../types";
-import { fromIsoDate, isIsoWithin, taskDateRange, toIsoDate } from "./dates";
+import { formatDayLabel, fromIsoDate, isIsoWithin, taskDateRange, toIsoDate } from "./dates";
 
 export type WeekSummary = {
   weekStart: string;
@@ -37,8 +36,8 @@ export function weekSummary(tasks: Task[], weekStart: string, weekEnd: string): 
 }
 
 export function formatWeekSummary(summary: WeekSummary): string {
-  const start = format(fromIsoDate(summary.weekStart), "M月d日");
-  const end = format(fromIsoDate(summary.weekEnd), "M月d日");
+  const start = formatDayLabel(fromIsoDate(summary.weekStart));
+  const end = formatDayLabel(fromIsoDate(summary.weekEnd));
   const lines = [`本周摘要（${start} – ${end}）`, "", `已完成 · ${summary.completed.length}`];
   if (summary.completed.length === 0) lines.push("- （无）");
   else {

@@ -2,58 +2,10 @@
 
 > How components are built in this project.
 
----
+## Theming and focus
 
-## Overview
-
-<!--
-Document your project's component conventions here.
-
-Questions to answer:
-- What component patterns do you use?
-- How are props defined?
-- How do you handle composition?
-- What accessibility standards apply?
--->
-
-(To be filled by the team)
-
----
-
-## Component Structure
-
-<!-- Standard structure of a component file -->
-
-(To be filled by the team)
-
----
-
-## Props Conventions
-
-<!-- How props should be defined and typed -->
-
-(To be filled by the team)
-
----
-
-## Styling Patterns
-
-<!-- How styles are applied (CSS modules, styled-components, Tailwind, etc.) -->
-
-(To be filled by the team)
-
----
-
-## Accessibility
-
-<!-- A11y requirements and patterns -->
-
-(To be filled by the team)
-
----
-
-## Common Mistakes
-
-<!-- Component-related mistakes your team has made -->
-
-(To be filled by the team)
+- Interactive chrome uses ink/paper tokens: `--accent` matches `--ink`; `--accent-soft` is a warm wash. Do not reintroduce indigo `#4f46e5` for focus or selection.
+- Compound fields (`.composer`) use `:has(:focus-visible)`, not `:focus-within`, so mouse click does not draw a ring.
+- Keep global `:focus { outline: none }` paired with `:focus-visible`.
+- Skip target `#main-view` must be a real box (not `display: contents`).
+- Display dates via `formatDayLabel` / `weekdayLabels` (`Intl`, `zh-CN`). ISO `yyyy-MM-dd` stays a data key.

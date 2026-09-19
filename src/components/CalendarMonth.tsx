@@ -32,7 +32,7 @@ import {
 } from "../lib/dates";
 import { habitsOnDay, undatedOpenTasks } from "../lib/filters";
 import { useCortex } from "../state/store";
-import { isHabit, type Draft, type Task } from "../types";
+import { isHabit, LIST_FALLBACK_COLOR, type Draft, type Task } from "../types";
 import { CalendarViewToggle } from "./CalendarChrome";
 import { AppSelect, CheckControl } from "./ui";
 
@@ -93,7 +93,7 @@ export function CalendarMonth({
   const today = todayIso();
 
   const colorFor = (task: Task) =>
-    cortex.lists.find((list) => list.id === task.listId)?.color ?? "#57534e";
+    cortex.lists.find((list) => list.id === task.listId)?.color ?? LIST_FALLBACK_COLOR;
 
   const applyDrop = (task: Task, iso: string) => {
     const range = taskDateRange(task);
@@ -486,12 +486,11 @@ function CalendarBar({
   return (
     <div
       ref={setNodeRef}
-      className={`task-bar${task.status === "completed" ? " is-done" : ""}`}
+      className={`task-bar${task.status === "completed" ? " is-done" : ""}${selected ? " is-selected" : ""}`}
       style={{
         gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
         gridRow: bar.lane + 1,
         background: color,
-        outline: selected ? "2px solid #1a1612" : undefined,
         opacity: isDragging ? 0.35 : 1,
         borderRadius: bar.continuesBefore
           ? "0 3px 3px 0"

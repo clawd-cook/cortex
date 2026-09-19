@@ -17,7 +17,7 @@ import { habitsOnDay, undatedOpenTasks } from "../lib/filters";
 import { eventMinutes, hourLabel, minutesToHm } from "../lib/times";
 import { isTimedTask, layoutTimedEvents } from "../lib/week-layout";
 import { useCortex } from "../state/store";
-import { isHabit, type Draft, type Task } from "../types";
+import { isHabit, LIST_FALLBACK_COLOR, type Draft, type Task } from "../types";
 import { CalendarViewToggle } from "./CalendarChrome";
 import { AppSelect } from "./ui";
 
@@ -86,7 +86,7 @@ export function CalendarWeek({
   }, [days[0]]);
 
   const colorFor = (task: Task) =>
-    cortex.lists.find((list) => list.id === task.listId)?.color ?? "#57534e";
+    cortex.lists.find((list) => list.id === task.listId)?.color ?? LIST_FALLBACK_COLOR;
 
   const filterItems = [
     { value: "all", label: "全部项目" },
@@ -235,12 +235,11 @@ export function CalendarWeek({
                   <button
                     key={`${bar.taskId}-${bar.startCol}`}
                     type="button"
-                    className={`task-bar${task.status === "completed" ? " is-done" : ""}`}
+                    className={`task-bar${task.status === "completed" ? " is-done" : ""}${task.id === selectedTaskId ? " is-selected" : ""}`}
                     style={{
                       gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
                       gridRow: bar.lane + 1,
                       background: colorFor(task),
-                      outline: task.id === selectedTaskId ? "2px solid #1a1612" : undefined,
                     }}
                     onClick={(event) => {
                       event.stopPropagation();
@@ -306,14 +305,13 @@ export function CalendarWeek({
                       <button
                         key={task.id}
                         type="button"
-                        className={`timed-event${task.status === "completed" ? " is-done" : ""}`}
+                        className={`timed-event${task.status === "completed" ? " is-done" : ""}${task.id === selectedTaskId ? " is-selected" : ""}`}
                         style={{
                           top: (place.startMin / 60) * HOUR_HEIGHT,
                           height: ((place.endMin - place.startMin) / 60) * HOUR_HEIGHT,
                           left: `calc(${place.col * width}% + 2px)`,
                           width: `calc(${width}% - 4px)`,
                           background: colorFor(task),
-                          outline: task.id === selectedTaskId ? "2px solid #1a1612" : undefined,
                         }}
                         onClick={(event) => {
                           event.stopPropagation();

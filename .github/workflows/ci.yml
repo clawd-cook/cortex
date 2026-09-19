@@ -1,0 +1,50 @@
+# Behavior: spec/spec-process-cicd-ci.md
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "24.20.0"
+  PNPM_VERSION: "11.23.0"
+
+jobs:
+  frontend:
+    name: Frontend typecheck and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm via corepack
+        run: |
+          export COREPACK_ENABLE_STRICT=0
+          corepack enable
+          corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
+        env:
+          COREPACK_ENABLE_AUTO_PIN: "0"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck frontend
+        run: pnpm exec tsc --noEmit
+
+      - name: Test
+        run: pnpm test
