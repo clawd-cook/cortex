@@ -18,6 +18,7 @@ import {
   isInboxTask,
   nextTasks,
   openHabits,
+  projectsMissingNext,
   splitOpenCompleted,
   tasksForList,
   tasksForStatus,
@@ -118,9 +119,11 @@ export function TaskPane({
     return [{ list: null, tasks }];
   }, [cortex.lists, route.name, tasks]);
   const emptyProjects =
-    route.name === "next"
-      ? cortex.lists.filter((list) => tasksForList(cortex.tasks, list.id).length === 0)
-      : [];
+    route.name === "next" ? projectsMissingNext(cortex.lists, cortex.tasks) : [];
+  const clarifyTarget =
+    route.name === "inbox" && tasks.length > 0
+      ? tasks.find((task) => task.id === selectedId) ?? tasks[0]
+      : null;
 
   const completed =
     route.name === "list"
@@ -137,11 +140,11 @@ export function TaskPane({
             <h1 id="view-title">{viewTitle(route, cortex.lists, cortex.tags)}</h1>
             <p>
               {route.name === "today"
-                ? "今天要动手的下一步，按项目分组。独立下一步在「独立」组。"
+                ? "今天要动手的承诺，按项目分组。未处理的收集项不会出现在这里。"
                 : route.name === "inbox"
-                  ? "还没决定去哪的事。挂到项目、变成项目、设日期，或扔掉。"
+                  ? "未处理的打断。一次澄清一条：设日期、挂项目、变成项目，或扔掉。"
                   : route.name === "next"
-                    ? "已离开收集箱、还没做完的下一步。点项目名可回到所属项目。"
+                    ? "已处理、可动手的下一步。点项目名可回到所属项目。"
                     : route.name === "list"
                       ? "这个项目里可执行的下一步。"
                       : route.name === "habits"
@@ -150,6 +153,54 @@ export function TaskPane({
             </p>
           </div>
         </div>
+        {clarifyTarget ? (
+          <div className="composer" role="region" aria-label="处理模式">
+            <p className="group-label" style={{ margin: 0, flex: 1 }}>
+              处理：{clarifyTarget.title}
+            </p>
+            <Button
+              type="button"
+              className="ghost-btn"
+              onClick={() => {
+                const day = todayIso();
+                void cortex.updateTask({
+                  ...clarifyTarget,
+                  startDate: day,
+                  dueDate: day,
+                  processed: true,
+                });
+              }}
+            >
+              设为今天
+            </Button>
+            <Button
+              type="button"
+              className="ghost-btn"
+              onClick={() => {
+                void cortex
+                  .createList({
+                    name: clarifyTarget.title,
+                    color: LIST_COLORS[cortex.lists.length % LIST_COLORS.length],
+                  })
+                  .then(async (list) => {
+                    await cortex.removeTask(clarifyTarget.id);
+                    onNavigate({ name: "list", listId: list.id });
+                  });
+              }}
+            >
+              变成项目
+            </Button>
+            {clarifyTarget.id !== selectedId ? (
+              <Button
+                type="button"
+                className="primary-btn"
+                onClick={() => onNavigate(withTask(route, clarifyTarget.id))}
+              >
+                打开
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
         {route.name === "completed" ||
         route.name === "abandoned" ||
         route.name === "trash" ||
@@ -215,24 +266,17 @@ export function TaskPane({
                     draft?.source === "list" || draft?.source === "toolbar" ? draft.title : ""
                   ).trim();
                   if (!title) return;
+                  const day =
+                    route.name === "tomorrow" ? addIsoDays(todayIso(), 1) : todayIso();
                   void cortex
                     .createTask({
                       title,
                       listId: route.name === "list" ? route.listId : null,
-                      startDate:
-                        route.name === "today"
-                          ? todayIso()
-                          : route.name === "tomorrow"
-                            ? addIsoDays(todayIso(), 1)
-                            : null,
-                      dueDate:
-                        route.name === "today"
-                          ? todayIso()
-                          : route.name === "tomorrow"
-                            ? addIsoDays(todayIso(), 1)
-                            : null,
+                      startDate: day,
+                      dueDate: day,
                       tagIds: route.name === "tag" ? [route.tagId] : [],
                       kind: "task",
+                      processed: true,
                       status: "completed",
                       completedAt: nowIso(),
                     })
@@ -610,8 +654,10 @@ export function TaskDetail({
             清除日期
           </Toolbar.Button>
         </Toolbar.Root>
-        {task.listId === null ? (
-          <p className="group-label">清掉日期且没有项目时，会回到收集箱。</p>
+        {!task.processed ? (
+          <p className="group-label">未处理：设日期或挂到项目后会离开收集箱。</p>
+        ) : task.listId === null ? (
+          <p className="group-label">已处理的独立下一步，即使没有日期也不会回到收集箱。</p>
         ) : null}
       </div>
       <div className="field">

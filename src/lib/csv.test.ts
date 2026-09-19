@@ -39,7 +39,9 @@ describe("csv import", () => {
     expect(plan.tags.map((tag) => tag.name)).toEqual(["技术改造", "紧急"]);
     expect(plan.tasks[0].status).toBe("completed");
     expect(plan.tasks[0].listId).toBe(plan.lists[0].id);
+    expect(plan.tasks[0].processed).toBe(true);
     expect(plan.tasks[1].kind).toBe("habit");
+    expect(plan.tasks[1].processed).toBe(true);
   });
 
   it("accepts 项目 as the list column alias", () => {

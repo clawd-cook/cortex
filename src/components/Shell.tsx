@@ -36,6 +36,7 @@ import {
   PROJECT_DELETE_BLOCKED,
   inboxTasks,
   nextTasks,
+  projectsMissingNext,
   tasksForList,
   tasksForStatus,
   tasksForTag,
@@ -211,11 +212,13 @@ function ListNavItem({
   list,
   active,
   count,
+  missingNext,
   onEdit,
 }: {
   list: List;
   active: boolean;
   count: number;
+  missingNext: boolean;
   onEdit: () => void;
 }) {
   return (
@@ -225,13 +228,20 @@ function ListNavItem({
           <a
             className={`side-item${active ? " is-active" : ""}`}
             href={toHash({ name: "list", listId: list.id })}
+            title={missingNext ? "还没有可动手的下一步" : undefined}
           />
         }
       >
         <span>{list.emoji}</span>
         <i className="dot" style={{ background: list.color }} />
         <span>{list.name}</span>
-        <b className="count">{count}</b>
+        {missingNext ? (
+          <b className="count" aria-label="缺下一步">
+            缺
+          </b>
+        ) : (
+          <b className="count">{count}</b>
+        )}
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
         <ContextMenu.Positioner sideOffset={4}>
@@ -312,6 +322,9 @@ export function Sidebar({
     abandoned: tasksForStatus(cortex.tasks, "abandoned").length,
     trash: tasksForStatus(cortex.tasks, "trash").length,
   };
+  const missingNextIds = new Set(
+    projectsMissingNext(cortex.lists, cortex.tasks).map((list) => list.id),
+  );
 
   const closeEditors = () => {
     setListEditor(null);
@@ -395,6 +408,7 @@ export function Sidebar({
               list={list}
               active={isRoute(route, "list", list.id)}
               count={tasksForList(cortex.tasks, list.id).length}
+              missingNext={missingNextIds.has(list.id)}
               onEdit={() => {
                 setDraftName(list.name);
                 setDraftColor(list.color);

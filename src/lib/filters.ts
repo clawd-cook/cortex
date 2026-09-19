@@ -12,20 +12,33 @@ export function workTasks(tasks: Task[]): Task[] {
   return tasks.filter((task) => !isHabit(task));
 }
 
+/** 收集箱：未完成 ∧ 未处理 ∧ 非习惯 */
 export function isInboxTask(task: Task): boolean {
-  return !isHabit(task) && isOpen(task) && task.listId === null && taskDateRange(task) === null;
+  return !isHabit(task) && isOpen(task) && !task.processed;
 }
 
 export function inboxTasks(tasks: Task[]): Task[] {
   return tasks.filter(isInboxTask);
 }
 
+/** 下一步：未完成 ∧ 已处理 ∧ 可动手 ∧ 非习惯 */
+export function isNextTask(task: Task): boolean {
+  return !isHabit(task) && isOpen(task) && task.processed && task.actionable;
+}
+
 export function nextTasks(tasks: Task[]): Task[] {
-  return workTasks(tasks).filter((task) => isOpen(task) && !isInboxTask(task));
+  return tasks.filter(isNextTask);
 }
 
 export function tasksForList(tasks: Task[], listId: string): Task[] {
   return workTasks(tasks).filter((task) => task.listId === listId && isOpen(task));
+}
+
+/** 进行中项目里没有可动手下一步的项目 */
+export function projectsMissingNext(lists: List[], tasks: Task[]): List[] {
+  return lists.filter(
+    (list) => !tasks.some((task) => task.listId === list.id && isNextTask(task)),
+  );
 }
 
 export function assertCanDeleteProject(tasks: Task[], projectId: string): void {
@@ -50,8 +63,9 @@ export function tomorrowTasks(tasks: Task[], tomorrowIso: string): Task[] {
   return nextTasks(tasks).filter((task) => taskOverlapsDay(task, tomorrowIso));
 }
 
+/** 日历未排期队列：已处理的无日期下一步（不含未处理收集项） */
 export function undatedOpenTasks(tasks: Task[]): Task[] {
-  return workTasks(tasks).filter((task) => isOpen(task) && taskDateRange(task) === null);
+  return nextTasks(tasks).filter((task) => taskDateRange(task) === null);
 }
 
 export function openHabits(tasks: Task[]): Task[] {
@@ -107,12 +121,10 @@ export function completedInList(
   );
 }
 
+/** 收集箱已完成折页：完成时仍是未处理（不要用 completedInList(..., null)） */
 export function completedInboxTasks(tasks: Task[]): Task[] {
   return workTasks(tasks).filter(
-    (task) =>
-      task.status === "completed" &&
-      task.listId === null &&
-      taskDateRange(task) === null,
+    (task) => task.status === "completed" && !task.processed,
   );
 }
 

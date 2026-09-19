@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PROJECT_DELETE_BLOCKED } from "../lib/filters";
 import { createWebStore } from "../lib/storage/web";
 import type { List, Task } from "../types";
+import { hydrateTask } from "../types";
 import { CortexProvider, useCortex } from "./store";
 
 function list(partial: Partial<List> & { id: string; name: string }): List {
@@ -18,7 +19,7 @@ function list(partial: Partial<List> & { id: string; name: string }): List {
 }
 
 function task(partial: Partial<Task> & { id: string; title: string }): Task {
-  return {
+  return hydrateTask({
     listId: null,
     startDate: null,
     dueDate: null,
@@ -35,7 +36,7 @@ function task(partial: Partial<Task> & { id: string; title: string }): Task {
     createdAt: "t",
     updatedAt: "t",
     ...partial,
-  };
+  });
 }
 
 let api: ReturnType<typeof useCortex> | null = null;
@@ -137,5 +138,32 @@ describe("project delete guard", () => {
       await api!.removeList("p1");
     });
     expect(api!.lists).toEqual([]);
+  });
+
+  it("sets processed when createTask or updateTask assigns a date", async () => {
+    await mount();
+    let created!: Task;
+    await act(async () => {
+      created = (await api!.createTask({ title: "收集一下" }))!;
+    });
+    expect(created.processed).toBe(false);
+    await act(async () => {
+      await api!.updateTask({
+        ...created,
+        startDate: "2026-09-19",
+        dueDate: "2026-09-19",
+      });
+    });
+    expect(api!.tasks.find((row) => row.id === created.id)?.processed).toBe(true);
+
+    let todayTask!: Task;
+    await act(async () => {
+      todayTask = (await api!.createTask({
+        title: "今天承诺",
+        startDate: "2026-09-19",
+        dueDate: "2026-09-19",
+      }))!;
+    });
+    expect(todayTask.processed).toBe(true);
   });
 });

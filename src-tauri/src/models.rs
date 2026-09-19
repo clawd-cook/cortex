@@ -44,6 +44,11 @@ pub struct Task {
     pub end_time: Option<String>,
     #[serde(default = "default_kind")]
     pub kind: String,
+    /// Clarified / left inbox. Missing on deserialize defaults true; SQL migrate backfills.
+    #[serde(default = "default_true")]
+    pub processed: bool,
+    #[serde(default = "default_true")]
+    pub actionable: bool,
     pub priority: i32,
     pub status: String,
     pub notes: String,
