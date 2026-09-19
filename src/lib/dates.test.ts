@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addIsoDays, buildMonthGrid, durationDays, fromIsoDate, shiftRange, taskOverlapsDay, todayIso } from "./dates";
+import { addIsoDays, buildMonthGrid, durationDays, fromIsoDate, normalizeIsoDate, shiftRange, taskOverlapsDay, todayIso } from "./dates";
 
 describe("dates", () => {
   it("treats a due-only task as a single day", () => {
@@ -21,6 +21,11 @@ describe("dates", () => {
     expect(grid.weeks[0]).toHaveLength(7);
     expect(grid.weeks[0][0]).toBe("2026-08-31");
     expect(grid.weeks[grid.weeks.length - 1]?.[6]).toBe("2026-10-04");
+  });
+
+  it("rejects impossible years from date inputs", () => {
+    expect(normalizeIsoDate("0002-09-21")).toBeNull();
+    expect(normalizeIsoDate("2026-09-19")).toBe("2026-09-19");
   });
 
   it("formats today as an ISO date without a timezone shift in local time", () => {

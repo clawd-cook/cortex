@@ -23,6 +23,21 @@ export function fromIsoDate(iso: string): Date {
   return startOfDay(parseISO(iso));
 }
 
+export function normalizeIsoDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (year < 1970 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) {
+    return null;
+  }
+  const parsed = fromIsoDate(value);
+  if (Number.isNaN(parsed.getTime()) || toIsoDate(parsed) !== value) return null;
+  return value;
+}
+
 export function todayIso(now = new Date()): string {
   return toIsoDate(now);
 }

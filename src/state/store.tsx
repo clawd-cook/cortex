@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createId, nowIso } from "../lib/id";
+import { normalizeIsoDate } from "../lib/dates";
 import { createStore, type CortexStore } from "../lib/storage";
 import type { List, Settings, Snapshot, Tag, Task, TaskStatus } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
@@ -161,8 +162,8 @@ export function CortexProvider({
         id: createId(),
         title,
         listId: input.listId ?? null,
-        startDate: input.startDate ?? input.dueDate ?? null,
-        dueDate: input.dueDate ?? input.startDate ?? null,
+        startDate: normalizeIsoDate(input.startDate ?? input.dueDate ?? null),
+        dueDate: normalizeIsoDate(input.dueDate ?? input.startDate ?? null),
         allDay: input.allDay ?? true,
         priority: input.priority ?? 0,
         status: input.status ?? "open",
@@ -182,7 +183,12 @@ export function CortexProvider({
 
   const updateTask = useCallback(
     async (task: Task) => {
-      const next = { ...task, updatedAt: nowIso() };
+      const next = {
+        ...task,
+        startDate: normalizeIsoDate(task.startDate),
+        dueDate: normalizeIsoDate(task.dueDate),
+        updatedAt: nowIso(),
+      };
       await store.saveTask(next);
       setSnapshot((curr) => ({
         ...curr,

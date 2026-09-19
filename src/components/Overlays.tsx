@@ -109,16 +109,14 @@ export function SettingsDialog({
             <option value={0}>周日</option>
           </select>
         </label>
-        <label className="field">
-          <span>
-            <input
-              type="checkbox"
-              name="show-completed"
-              checked={settings.showCompleted}
-              onChange={(event) => patch({ showCompleted: event.target.checked })}
-            />{" "}
-            显示已完成（列表折起来，月历上仍能看见）
-          </span>
+        <label className="field" style={{ gridTemplateColumns: "auto 1fr", alignItems: "center" }}>
+          <input
+            type="checkbox"
+            name="show-completed"
+            checked={settings.showCompleted}
+            onChange={(event) => patch({ showCompleted: event.target.checked })}
+          />
+          <span>显示已完成（列表折起来，月历上仍能看见）</span>
         </label>
         <p className="group-label">
           数据存在这台电脑。关掉 Cortex 再打开，清单和任务都还在。

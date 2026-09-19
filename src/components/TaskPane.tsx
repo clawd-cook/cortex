@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { IconCheck, IconInbox } from "../icons";
-import { addIsoDays, formatChip, todayIso } from "../lib/dates";
+import { addIsoDays, formatChip, normalizeIsoDate, todayIso } from "../lib/dates";
 import {
   completedInList,
   groupByList,
@@ -172,7 +172,7 @@ export function TaskPane({
           </form>
         )}
         <div className="task-scroll">
-          {grouped.every((group) => group.tasks.length === 0) ? (
+          {route.name !== "search" && grouped.every((group) => group.tasks.length === 0) ? (
             <div className="empty">
               <IconInbox />
               <strong>这里还是空的</strong>
@@ -320,17 +320,22 @@ export function TaskDetail({ task, onClose }: { task: Task | null; onClose: () =
         <input
           type="date"
           name="start-date"
+          min="1970-01-01"
+          max="2100-12-31"
           value={task.startDate ?? ""}
-          onChange={(event) =>
+          onChange={(event) => {
+            const raw = event.target.value;
+            if (!raw) {
+              patch({ startDate: null });
+              return;
+            }
+            const iso = normalizeIsoDate(raw);
+            if (!iso) return;
             patch({
-              startDate: event.target.value || null,
-              dueDate: event.target.value
-                ? task.dueDate && task.dueDate < event.target.value
-                  ? event.target.value
-                  : task.dueDate ?? event.target.value
-                : task.dueDate,
-            })
-          }
+              startDate: iso,
+              dueDate: task.dueDate && task.dueDate < iso ? iso : task.dueDate ?? iso,
+            });
+          }}
         />
       </label>
       <label className="field">
@@ -338,19 +343,59 @@ export function TaskDetail({ task, onClose }: { task: Task | null; onClose: () =
         <input
           type="date"
           name="due-date"
+          min="1970-01-01"
+          max="2100-12-31"
           value={task.dueDate ?? ""}
-          onChange={(event) =>
+          onChange={(event) => {
+            const raw = event.target.value;
+            if (!raw) {
+              patch({ dueDate: null });
+              return;
+            }
+            const iso = normalizeIsoDate(raw);
+            if (!iso) return;
             patch({
-              dueDate: event.target.value || null,
-              startDate: event.target.value
-                ? task.startDate && task.startDate > event.target.value
-                  ? event.target.value
-                  : task.startDate ?? event.target.value
-                : task.startDate,
-            })
-          }
+              dueDate: iso,
+              startDate: task.startDate && task.startDate > iso ? iso : task.startDate ?? iso,
+            });
+          }}
         />
       </label>
+      <div className="field">
+        <span>快捷日期</span>
+        <div className="priority-row">
+          <button
+            type="button"
+            onClick={() => {
+              const day = todayIso();
+              patch({ startDate: day, dueDate: day });
+            }}
+          >
+            今天
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const day = addIsoDays(todayIso(), 1);
+              patch({ startDate: day, dueDate: day });
+            }}
+          >
+            明天
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const start = todayIso();
+              patch({ startDate: start, dueDate: addIsoDays(start, 2) });
+            }}
+          >
+            跨三天
+          </button>
+          <button type="button" onClick={() => patch({ startDate: null, dueDate: null })}>
+            清除日期
+          </button>
+        </div>
+      </div>
       <div className="field">
         <span>优先级</span>
         <div className="priority-row">
