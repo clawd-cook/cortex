@@ -319,6 +319,12 @@
       "skillPath": "pm-market-research/skills/sentiment-analysis/SKILL.md",
       "computedHash": "5202a258b4ce2c7bfff3845f269349ca5fa21c68a48610899c62503286b2d410"
     },
+    "shadcn": {
+      "source": "shadcn-ui/ui",
+      "sourceType": "github",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "f615de216e085a84e31593ad0fa9062232adc40cd87b7c7ab2b8e49abf6500be"
+    },
     "shipping-artifacts": {
       "source": "phuryn/pm-skills",
       "sourceType": "github",
