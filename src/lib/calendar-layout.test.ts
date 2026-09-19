@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { layoutMonthBars } from "./calendar-layout";
-import type { Task } from "../types";
+import { hydrateTask, type Task } from "../types";
 
 function task(partial: Partial<Task> & { id: string; title: string }): Task {
-  return {
+  return hydrateTask({
     listId: null,
     startDate: null,
     dueDate: null,
@@ -20,7 +20,7 @@ function task(partial: Partial<Task> & { id: string; title: string }): Task {
     createdAt: "t",
     updatedAt: "t",
     ...partial,
-  };
+  });
 }
 
 describe("calendar layout", () => {

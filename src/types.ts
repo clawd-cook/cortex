@@ -29,6 +29,10 @@ export type Task = {
   startTime: string | null;
   endTime: string | null;
   kind: TaskKind;
+  /** False = still in 收集箱 (unclarified). Active date or project attach sets true. */
+  processed: boolean;
+  /** Thin GTD flag; false hides from 下一步 / 今天. Defaults true. */
+  actionable: boolean;
   priority: 0 | 1 | 2 | 3;
   status: TaskStatus;
   notes: string;
@@ -122,18 +126,32 @@ export function hydrateSettings(raw?: Partial<Settings> | null): Settings {
 }
 
 export function hydrateTask(raw: Partial<Task> & Pick<Task, "id" | "title">): Task {
+  const listId = raw.listId ?? null;
+  const startDate = raw.startDate ?? null;
+  const dueDate = raw.dueDate ?? null;
+  const kind = raw.kind === "habit" ? "habit" : "task";
+  const status = raw.status ?? "open";
+  const hasDate = startDate != null || dueDate != null;
+  // Migration: missing processed → only open undated independent non-habits stay unprocessed.
+  const processed =
+    typeof raw.processed === "boolean"
+      ? raw.processed
+      : !(status === "open" && listId === null && !hasDate && kind !== "habit");
+  const actionable = typeof raw.actionable === "boolean" ? raw.actionable : true;
   return {
     id: raw.id,
     title: raw.title,
-    listId: raw.listId ?? null,
-    startDate: raw.startDate ?? null,
-    dueDate: raw.dueDate ?? null,
+    listId,
+    startDate,
+    dueDate,
     allDay: raw.allDay ?? true,
     startTime: raw.startTime ?? null,
     endTime: raw.endTime ?? null,
-    kind: raw.kind === "habit" ? "habit" : "task",
+    kind,
+    processed,
+    actionable,
     priority: raw.priority ?? 0,
-    status: raw.status ?? "open",
+    status,
     notes: raw.notes ?? "",
     completedAt: raw.completedAt ?? null,
     tagIds: raw.tagIds ?? [],

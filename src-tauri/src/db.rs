@@ -32,6 +32,8 @@ pub fn migrate(conn: &Connection) -> DbResult<()> {
             start_time TEXT,
             end_time TEXT,
             kind TEXT NOT NULL DEFAULT 'task',
+            processed INTEGER NOT NULL DEFAULT 1,
+            actionable INTEGER NOT NULL DEFAULT 1,
             priority INTEGER NOT NULL DEFAULT 0,
             status TEXT NOT NULL DEFAULT 'open',
             notes TEXT NOT NULL DEFAULT '',
@@ -80,6 +82,31 @@ fn ensure_task_columns(conn: &Connection) -> DbResult<()> {
     }
     if !cols.iter().any(|name| name == "end_time") {
         conn.execute("ALTER TABLE tasks ADD COLUMN end_time TEXT", [])?;
+    }
+    if !cols.iter().any(|name| name == "processed") {
+        conn.execute(
+            "ALTER TABLE tasks ADD COLUMN processed INTEGER NOT NULL DEFAULT 1",
+            [],
+        )?;
+        conn.execute(
+            "ALTER TABLE tasks ADD COLUMN actionable INTEGER NOT NULL DEFAULT 1",
+            [],
+        )?;
+        // Phase A migration: only open undated independent non-habits stay unprocessed.
+        conn.execute(
+            "UPDATE tasks SET processed = 0
+             WHERE status = 'open'
+               AND list_id IS NULL
+               AND start_date IS NULL
+               AND due_date IS NULL
+               AND kind != 'habit'",
+            [],
+        )?;
+    } else if !cols.iter().any(|name| name == "actionable") {
+        conn.execute(
+            "ALTER TABLE tasks ADD COLUMN actionable INTEGER NOT NULL DEFAULT 1",
+            [],
+        )?;
     }
     Ok(())
 }
@@ -134,7 +161,8 @@ fn load_task_tag_ids(conn: &Connection, task_id: &str) -> DbResult<Vec<String>> 
 fn load_tasks(conn: &Connection) -> DbResult<Vec<Task>> {
     let mut stmt = conn.prepare(
         "SELECT id, title, list_id, start_date, due_date, all_day, start_time, end_time, kind,
-                priority, status, notes, completed_at, sort_order, created_at, updated_at
+                processed, actionable, priority, status, notes, completed_at, sort_order,
+                created_at, updated_at
          FROM tasks ORDER BY sort_order, created_at",
     )?;
     let rows = stmt.query_map([], |row| {
@@ -148,14 +176,16 @@ fn load_tasks(conn: &Connection) -> DbResult<Vec<Task>> {
             start_time: row.get(6)?,
             end_time: row.get(7)?,
             kind: row.get(8)?,
-            priority: row.get(9)?,
-            status: row.get(10)?,
-            notes: row.get(11)?,
-            completed_at: row.get(12)?,
+            processed: row.get::<_, i64>(9)? != 0,
+            actionable: row.get::<_, i64>(10)? != 0,
+            priority: row.get(11)?,
+            status: row.get(12)?,
+            notes: row.get(13)?,
+            completed_at: row.get(14)?,
             tag_ids: Vec::new(),
-            sort_order: row.get(13)?,
-            created_at: row.get(14)?,
-            updated_at: row.get(15)?,
+            sort_order: row.get(15)?,
+            created_at: row.get(16)?,
+            updated_at: row.get(17)?,
         })
     })?;
     let mut tasks = Vec::new();
@@ -263,8 +293,9 @@ pub fn save_task(conn: &Connection, task: &Task) -> DbResult<()> {
     conn.execute(
         "INSERT INTO tasks (
             id, title, list_id, start_date, due_date, all_day, start_time, end_time, kind,
-            priority, status, notes, completed_at, sort_order, created_at, updated_at
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+            processed, actionable, priority, status, notes, completed_at, sort_order,
+            created_at, updated_at
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
          ON CONFLICT(id) DO UPDATE SET
            title = excluded.title,
            list_id = excluded.list_id,
@@ -274,6 +305,8 @@ pub fn save_task(conn: &Connection, task: &Task) -> DbResult<()> {
            start_time = excluded.start_time,
            end_time = excluded.end_time,
            kind = excluded.kind,
+           processed = excluded.processed,
+           actionable = excluded.actionable,
            priority = excluded.priority,
            status = excluded.status,
            notes = excluded.notes,
@@ -290,6 +323,8 @@ pub fn save_task(conn: &Connection, task: &Task) -> DbResult<()> {
             task.start_time,
             task.end_time,
             task.kind,
+            if task.processed { 1 } else { 0 },
+            if task.actionable { 1 } else { 0 },
             task.priority,
             task.status,
             task.notes,
@@ -361,6 +396,8 @@ mod tests {
             start_time: None,
             end_time: None,
             kind: "task".into(),
+            processed: true,
+            actionable: true,
             priority: 2,
             status: "open".into(),
             notes: "hello".into(),
@@ -425,6 +462,7 @@ mod tests {
         assert!(snap.settings.show_completed);
         assert_eq!(snap.settings.week_starts_on, 1);
         assert_eq!(snap.tasks[0].kind, "task");
+        assert!(snap.tasks[0].processed);
         assert!(snap.settings.show_lunar);
     }
 
@@ -469,14 +507,27 @@ mod tests {
                 'legacy', '旧库任务', NULL, '2026-09-19', '2026-09-19', 1, 0, 'open',
                 '', NULL, 0, 't', 't'
             );
+            INSERT INTO tasks (
+                id, title, list_id, start_date, due_date, all_day, priority, status,
+                notes, completed_at, sort_order, created_at, updated_at
+            ) VALUES (
+                'capture', '旧收集', NULL, NULL, NULL, 1, 0, 'open',
+                '', NULL, 1, 't', 't'
+            );
             ",
         )
         .unwrap();
         migrate(&conn).unwrap();
         let snap = load_snapshot(&conn).unwrap();
-        assert_eq!(snap.tasks[0].title, "旧库任务");
-        assert_eq!(snap.tasks[0].kind, "task");
-        assert_eq!(snap.tasks[0].start_time, None);
+        let dated = snap.tasks.iter().find(|t| t.id == "legacy").unwrap();
+        let capture = snap.tasks.iter().find(|t| t.id == "capture").unwrap();
+        assert_eq!(dated.title, "旧库任务");
+        assert_eq!(dated.kind, "task");
+        assert_eq!(dated.start_time, None);
+        assert!(dated.processed);
+        assert!(dated.actionable);
+        assert!(!capture.processed);
+        assert!(capture.actionable);
     }
 
     #[test]

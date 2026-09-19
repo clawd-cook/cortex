@@ -181,16 +181,29 @@ export function CortexProvider({
       const title = input.title.trim();
       if (!title) return null;
       const stamp = nowIso();
+      const listId = input.listId ?? null;
+      const startDate = normalizeIsoDate(input.startDate ?? input.dueDate ?? null);
+      const dueDate = normalizeIsoDate(input.dueDate ?? input.startDate ?? null);
+      const kind = input.kind === "habit" ? ("habit" as const) : ("task" as const);
+      const hasDate = startDate != null || dueDate != null;
+      // Inbox capture = no date, no list → unprocessed. Date, project, or habit → processed.
+      const processed =
+        typeof input.processed === "boolean"
+          ? input.processed
+          : hasDate || listId != null || kind === "habit";
+      const actionable = typeof input.actionable === "boolean" ? input.actionable : true;
       const task: Task = {
         id: createId(),
         title,
-        listId: input.listId ?? null,
-        startDate: normalizeIsoDate(input.startDate ?? input.dueDate ?? null),
-        dueDate: normalizeIsoDate(input.dueDate ?? input.startDate ?? null),
+        listId,
+        startDate,
+        dueDate,
         allDay: input.allDay ?? !input.startTime,
         startTime: normalizeHm(input.startTime),
         endTime: normalizeHm(input.endTime),
-        kind: input.kind === "habit" ? "habit" : "task",
+        kind,
+        processed,
+        actionable,
         priority: input.priority ?? 0,
         status: input.status ?? "open",
         notes: input.notes ?? "",
@@ -209,13 +222,21 @@ export function CortexProvider({
 
   const updateTask = useCallback(
     async (task: Task) => {
-      const next = {
+      const startDate = normalizeIsoDate(task.startDate);
+      const dueDate = normalizeIsoDate(task.dueDate);
+      const hasDate = startDate != null || dueDate != null;
+      // Active date assignment or project attach ⇒ clarified.
+      const processed =
+        hasDate || task.listId != null ? true : Boolean(task.processed);
+      const next: Task = {
         ...task,
-        startDate: normalizeIsoDate(task.startDate),
-        dueDate: normalizeIsoDate(task.dueDate),
+        startDate,
+        dueDate,
         startTime: normalizeHm(task.startTime),
         endTime: normalizeHm(task.endTime),
-        kind: task.kind === "habit" ? "habit" as const : "task" as const,
+        kind: task.kind === "habit" ? ("habit" as const) : ("task" as const),
+        processed,
+        actionable: task.actionable ?? true,
         updatedAt: nowIso(),
       };
       await store.saveTask(next);

@@ -44,6 +44,8 @@ describe("web store persistence", () => {
       startTime: null,
       endTime: null,
       kind: "task",
+      processed: true,
+      actionable: true,
       priority: 0,
       status: "open",
       notes: "",
@@ -59,6 +61,23 @@ describe("web store persistence", () => {
     const second = createWebStore();
     const snap = await second.load();
     expect(snap.tasks[0]?.title).toBe("关掉再打开还在");
+    expect(snap.tasks[0]?.processed).toBe(true);
+  });
+
+  it("migrates missing processed on load: undated capture stays unprocessed", async () => {
+    localStorage.setItem(
+      "cortex:v2",
+      JSON.stringify({
+        lists: [],
+        tags: [],
+        tasks: [{ id: "old", title: "旧收集", listId: null, status: "open" }],
+        settings: {},
+      }),
+    );
+    const store = createWebStore();
+    const snap = await store.load();
+    expect(snap.tasks[0]?.processed).toBe(false);
+    expect(snap.tasks[0]?.actionable).toBe(true);
   });
 
   it("does not load cortex:v1 snapshots", async () => {
