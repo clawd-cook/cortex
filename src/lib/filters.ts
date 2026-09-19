@@ -1,38 +1,54 @@
+import { isHabit, type List, type Task, type TaskStatus } from "../types";
 import { taskDateRange, taskOverlapsDay } from "./dates";
-import type { List, Task, TaskStatus } from "../types";
 
 export function isOpen(task: Task): boolean {
   return task.status === "open";
 }
 
+export function workTasks(tasks: Task[]): Task[] {
+  return tasks.filter((task) => !isHabit(task));
+}
+
 export function inboxTasks(tasks: Task[]): Task[] {
-  return tasks.filter((task) => task.listId === null && isOpen(task));
+  return workTasks(tasks).filter((task) => task.listId === null && isOpen(task));
 }
 
 export function tasksForList(tasks: Task[], listId: string): Task[] {
-  return tasks.filter((task) => task.listId === listId && isOpen(task));
+  return workTasks(tasks).filter((task) => task.listId === listId && isOpen(task));
 }
 
 export function tasksForStatus(tasks: Task[], status: TaskStatus): Task[] {
-  return tasks.filter((task) => task.status === status);
+  return workTasks(tasks).filter((task) => task.status === status);
 }
 
 export function tasksForTag(tasks: Task[], tagId: string): Task[] {
-  return tasks.filter((task) => task.tagIds.includes(tagId) && isOpen(task));
+  return workTasks(tasks).filter((task) => task.tagIds.includes(tagId) && isOpen(task));
 }
 
 export function todayTasks(tasks: Task[], todayIso: string): Task[] {
-  return tasks.filter((task) => isOpen(task) && taskOverlapsDay(task, todayIso));
+  return workTasks(tasks).filter((task) => isOpen(task) && taskOverlapsDay(task, todayIso));
 }
 
 export function tomorrowTasks(tasks: Task[], tomorrowIso: string): Task[] {
-  return tasks.filter(
+  return workTasks(tasks).filter(
     (task) => isOpen(task) && taskOverlapsDay(task, tomorrowIso),
   );
 }
 
 export function undatedOpenTasks(tasks: Task[]): Task[] {
-  return tasks.filter((task) => isOpen(task) && taskDateRange(task) === null);
+  return workTasks(tasks).filter((task) => isOpen(task) && taskDateRange(task) === null);
+}
+
+export function openHabits(tasks: Task[]): Task[] {
+  return tasks.filter((task) => isHabit(task) && isOpen(task));
+}
+
+export function habitsOnDay(tasks: Task[], iso: string, today: string): Task[] {
+  return openHabits(tasks).filter((task) => {
+    const range = taskDateRange(task);
+    if (!range) return iso === today;
+    return taskOverlapsDay(task, iso);
+  });
 }
 
 export function groupByList(
@@ -69,7 +85,7 @@ export function completedInList(
   tasks: Task[],
   listId: string | null,
 ): Task[] {
-  return tasks.filter(
+  return workTasks(tasks).filter(
     (task) =>
       task.status === "completed" &&
       (listId === null ? task.listId === null : task.listId === listId),
@@ -83,7 +99,7 @@ export function searchByTitle(tasks: Task[], query: string): Task[] {
 }
 
 export function countOpen(tasks: Task[]): number {
-  return tasks.filter(isOpen).length;
+  return workTasks(tasks).filter(isOpen).length;
 }
 
 export function splitOpenCompleted(tasks: Task[]): {

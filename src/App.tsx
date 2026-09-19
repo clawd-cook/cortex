@@ -1,11 +1,13 @@
 import { Dialog } from "@base-ui/react/dialog";
-import { format, startOfMonth } from "date-fns";
+import { format, startOfMonth, startOfWeek } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 import { CalendarMonth } from "./components/CalendarMonth";
+import { CalendarWeek } from "./components/CalendarWeek";
 import { CommandPalette, SearchOverlay, SettingsDialog, useAppHotkeys } from "./components/Overlays";
 import { AppFrame } from "./components/Shell";
+import { SummaryPane } from "./components/SummaryPane";
 import { TaskDetail, TaskPane } from "./components/TaskPane";
-import { addIsoDays, todayIso } from "./lib/dates";
+import { addIsoDays, fromIsoDate, todayIso, weekDays } from "./lib/dates";
 import { selectedTaskId, withTask, type Route } from "./lib/route";
 import { useHashRoute } from "./lib/useHashRoute";
 import { CortexProvider, useCortex } from "./state/store";
@@ -19,10 +21,29 @@ function monthFromRoute(route: Route, fallback: Date): Date {
   return startOfMonth(fallback);
 }
 
+function weekFromRoute(route: Route, fallback: Date, weekStartsOn: 0 | 1): Date {
+  if (route.name === "calendar" && route.week) {
+    try {
+      return startOfWeek(fromIsoDate(route.week), { weekStartsOn });
+    } catch {
+      return fallback;
+    }
+  }
+  if (route.name === "summary" && route.week) {
+    try {
+      return startOfWeek(fromIsoDate(route.week), { weekStartsOn });
+    } catch {
+      return fallback;
+    }
+  }
+  return startOfWeek(fallback, { weekStartsOn });
+}
+
 function CortexApp() {
   const cortex = useCortex();
   const [route, navigate] = useHashRoute();
   const [monthDate, setMonthDate] = useState(() => startOfMonth(new Date()));
+  const [weekDate, setWeekDate] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [draft, setDraft] = useState<Draft | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -32,6 +53,10 @@ function CortexApp() {
   useEffect(() => {
     if (route.name === "calendar") {
       setMonthDate(monthFromRoute(route, monthDate));
+      setWeekDate(weekFromRoute(route, weekDate, cortex.settings.weekStartsOn));
+    }
+    if (route.name === "summary") {
+      setWeekDate(weekFromRoute(route, weekDate, cortex.settings.weekStartsOn));
     }
     if (route.name === "search") {
       setSearchOpen(true);
@@ -51,6 +76,10 @@ function CortexApp() {
       startDate: draft.startDate,
       dueDate: draft.dueDate,
       tagIds: draft.tagIds,
+      allDay: draft.allDay,
+      startTime: draft.startTime,
+      endTime: draft.endTime,
+      kind: draft.kind,
     });
     setDraft(null);
     if (created) navigate(withTask(route, created.id));
@@ -68,6 +97,7 @@ function CortexApp() {
         tagIds: [],
         source: "toolbar",
         anchorDate: today,
+        allDay: route.view !== "week",
       });
       return;
     }
@@ -78,6 +108,7 @@ function CortexApp() {
       dueDate: route.name === "today" ? today : route.name === "tomorrow" ? tomorrow : null,
       tagIds: route.name === "tag" ? [route.tagId] : [],
       source: "list",
+      kind: route.name === "habits" ? "habit" : "task",
     });
     window.setTimeout(() => {
       document.querySelector<HTMLInputElement>('input[name="new-task"]')?.focus();
@@ -99,7 +130,13 @@ function CortexApp() {
     },
     onToday: () => navigate({ name: "today" }),
     onInbox: () => navigate({ name: "inbox" }),
-    onMonth: () => navigate({ name: "calendar", month: format(monthDate, "yyyy-MM") }),
+    onMonth: () => navigate({ name: "calendar", view: "month", month: format(monthDate, "yyyy-MM") }),
+    onWeek: () =>
+      navigate({
+        name: "calendar",
+        view: "week",
+        week: weekDays(weekDate, cortex.settings.weekStartsOn)[0],
+      }),
     onEscape: () => {
       setDraft(null);
       setSearchOpen(false);
@@ -112,12 +149,29 @@ function CortexApp() {
 
   const onMonthDate = (date: Date) => {
     setMonthDate(date);
-    if (route.name === "calendar") {
+    if (route.name === "calendar" && route.view !== "week") {
       navigate({
         name: "calendar",
+        view: "month",
         month: format(date, "yyyy-MM"),
         taskId: route.taskId,
       });
+    }
+  };
+
+  const onWeekDate = (date: Date) => {
+    const start = startOfWeek(date, { weekStartsOn: cortex.settings.weekStartsOn });
+    setWeekDate(start);
+    if (route.name === "calendar" && route.view === "week") {
+      navigate({
+        name: "calendar",
+        view: "week",
+        week: weekDays(start, cortex.settings.weekStartsOn)[0],
+        taskId: route.taskId,
+      });
+    }
+    if (route.name === "summary") {
+      navigate({ name: "summary", week: weekDays(start, cortex.settings.weekStartsOn)[0] });
     }
   };
 
@@ -140,7 +194,24 @@ function CortexApp() {
         onOpenSettings={() => setSettingsOpen(true)}
       >
         <div id="main-view" style={{ display: "contents" }}>
-          {route.name === "calendar" ? (
+          {route.name === "calendar" && route.view === "week" ? (
+            <CalendarWeek
+              weekDate={weekDate}
+              onWeekDate={onWeekDate}
+              draft={draft && draft.source !== "list" ? draft : null}
+              selectedTaskId={route.taskId}
+              onSelectTask={(taskId) =>
+                navigate({
+                  name: "calendar",
+                  view: "week",
+                  week: weekDays(weekDate, cortex.settings.weekStartsOn)[0],
+                  taskId,
+                })
+              }
+              onDraft={setDraft}
+              onCommitDraft={commitDraft}
+            />
+          ) : route.name === "calendar" ? (
             <CalendarMonth
               monthDate={monthDate}
               onMonthDate={onMonthDate}
@@ -149,6 +220,7 @@ function CortexApp() {
               onSelectTask={(taskId) =>
                 navigate({
                   name: "calendar",
+                  view: "month",
                   month: format(monthDate, "yyyy-MM"),
                   taskId,
                 })
@@ -156,6 +228,8 @@ function CortexApp() {
               onDraft={setDraft}
               onCommitDraft={commitDraft}
             />
+          ) : route.name === "summary" ? (
+            <SummaryPane weekDate={weekDate} onWeekDate={onWeekDate} />
           ) : (
             <TaskPane
               route={route}
@@ -172,7 +246,15 @@ function CortexApp() {
           open
           onOpenChange={(open) => {
             if (!open) {
-              navigate({ name: "calendar", month: format(monthDate, "yyyy-MM") });
+              navigate(
+                route.view === "week"
+                  ? {
+                      name: "calendar",
+                      view: "week",
+                      week: weekDays(weekDate, cortex.settings.weekStartsOn)[0],
+                    }
+                  : { name: "calendar", view: "month", month: format(monthDate, "yyyy-MM") },
+              );
             }
           }}
         >
@@ -183,7 +265,15 @@ function CortexApp() {
               <TaskDetail
                 task={cortex.tasks.find((task) => task.id === route.taskId) ?? null}
                 onClose={() =>
-                  navigate({ name: "calendar", month: format(monthDate, "yyyy-MM") })
+                  navigate(
+                    route.view === "week"
+                      ? {
+                          name: "calendar",
+                          view: "week",
+                          week: weekDays(weekDate, cortex.settings.weekStartsOn)[0],
+                        }
+                      : { name: "calendar", view: "month", month: format(monthDate, "yyyy-MM") },
+                  )
                 }
               />
             </Dialog.Popup>

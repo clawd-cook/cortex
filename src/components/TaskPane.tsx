@@ -12,7 +12,9 @@ import { addIsoDays, formatChip, normalizeIsoDate, todayIso } from "../lib/dates
 import {
   completedInList,
   groupByList,
+  habitsOnDay,
   inboxTasks,
+  openHabits,
   splitOpenCompleted,
   tasksForList,
   tasksForStatus,
@@ -23,8 +25,8 @@ import {
 import type { Route } from "../lib/route";
 import { withTask } from "../lib/route";
 import { useCortex } from "../state/store";
-import type { Draft, Task, TaskStatus } from "../types";
-import { AppScrollArea, AppSelect, CheckControl, ConfirmDialog } from "./ui";
+import { isHabit, type Draft, type Task, type TaskStatus } from "../types";
+import { AppScrollArea, AppSelect, AppSwitch, CheckControl, ConfirmDialog } from "./ui";
 
 const PRIORITY_LABEL = ["无", "低", "中", "高"] as const;
 
@@ -49,7 +51,11 @@ export function viewTitle(route: Route, lists: { id: string; name: string }[], t
     case "search":
       return "搜索";
     case "calendar":
-      return "月历";
+      return route.view === "week" ? "周视图" : "月历";
+    case "summary":
+      return "摘要";
+    case "habits":
+      return "习惯";
   }
 }
 
@@ -72,6 +78,8 @@ function visibleTasks(route: Route, tasks: Task[]): Task[] {
       return tasksForStatus(tasks, "abandoned");
     case "trash":
       return tasksForStatus(tasks, "trash");
+    case "habits":
+      return openHabits(tasks);
     default:
       return [];
   }
@@ -109,9 +117,6 @@ export function TaskPane({
         ? completedInList(cortex.tasks, null)
         : splitOpenCompleted(tasks).completed;
 
-  const composerPlaceholder =
-    route.name === "today" ? "添加任务至收集箱…" : "添加任务…";
-
   return (
     <>
       <section className="main" aria-labelledby="view-title">
@@ -123,13 +128,16 @@ export function TaskPane({
                 ? "到期今天或跨天包含今天的未完成任务，按来源清单分组。"
                 : route.name === "inbox"
                   ? "还没放进清单的事。标题为空按 Esc 不会落库。"
-                  : "同一条任务也会出现在日历上。"}
+                  : route.name === "habits"
+                    ? "只读叠层用的习惯。日历和今天能看见，不在这里打卡。"
+                    : "同一条任务也会出现在日历上。"}
             </p>
           </div>
         </div>
         {route.name === "completed" ||
         route.name === "abandoned" ||
-        route.name === "trash" ? null : (
+        route.name === "trash" ||
+        route.name === "summary" ? null : (
           <Form
             className="composer"
             onSubmit={(event) => {
@@ -140,7 +148,13 @@ export function TaskPane({
             <Input
               name="new-task"
               autoComplete="off"
-              placeholder={composerPlaceholder}
+              placeholder={
+                route.name === "habits"
+                  ? "添加习惯…"
+                  : route.name === "today"
+                    ? "添加任务至收集箱…"
+                    : "添加任务…"
+              }
               value={draft?.source === "list" || draft?.source === "toolbar" ? draft.title : ""}
               onValueChange={(title) =>
                 onDraft({
@@ -160,6 +174,7 @@ export function TaskPane({
                         : null,
                   tagIds: route.name === "tag" ? [route.tagId] : [],
                   source: "list",
+                  kind: route.name === "habits" ? "habit" : "task",
                 })
               }
               onKeyDown={(event) => {
@@ -195,12 +210,14 @@ export function TaskPane({
                     key={task.id}
                     task={task}
                     selected={task.id === selectedId}
+                    hideCheck={isHabit(task)}
                     onSelect={() => onNavigate(withTask(route, task.id))}
                   />
                 ))}
               </div>
             ))
           )}
+          {route.name === "today" && cortex.settings.showHabits ? <TodayHabits /> : null}
           {cortex.settings.showCompleted &&
           completed.length > 0 &&
           route.name !== "completed" ? (
@@ -227,13 +244,31 @@ export function TaskPane({
   );
 }
 
+function TodayHabits() {
+  const { tasks } = useCortex();
+  const habits = habitsOnDay(tasks, todayIso(), todayIso());
+  if (habits.length === 0) return null;
+  return (
+    <div className="habits-strip" aria-label="习惯（只读）">
+      <div className="group-label">习惯</div>
+      {habits.map((habit) => (
+        <span key={habit.id} className="habit-chip">
+          {habit.title}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function TaskRow({
   task,
   selected,
+  hideCheck,
   onSelect,
 }: {
   task: Task;
   selected: boolean;
+  hideCheck?: boolean;
   onSelect: () => void;
 }) {
   const cortex = useCortex();
@@ -242,13 +277,17 @@ function TaskRow({
 
   return (
     <div className={`task-row${selected ? " is-selected" : ""}${task.status === "completed" ? " is-done" : ""}`}>
-      <CheckControl
-        checked={task.status === "completed"}
-        label={task.status === "completed" ? "标为未完成" : "完成任务"}
-        onCheckedChange={(checked) =>
-          void cortex.setTaskStatus(task, checked ? "completed" : "open")
-        }
-      />
+      {hideCheck ? (
+        <span className="habit-dot" aria-hidden="true" />
+      ) : (
+        <CheckControl
+          checked={task.status === "completed"}
+          label={task.status === "completed" ? "标为未完成" : "完成任务"}
+          onCheckedChange={(checked) =>
+            void cortex.setTaskStatus(task, checked ? "completed" : "open")
+          }
+        />
+      )}
       <button type="button" onClick={onSelect}>
         <span className="task-title">{task.title}</span>
         <span className="task-meta">
@@ -303,11 +342,15 @@ export function TaskDetail({ task, onClose }: { task: Task | null; onClose: () =
   return (
     <aside className="detail" aria-label="任务详情">
       <div className="detail-top">
-        <CheckControl
-          checked={task.status === "completed"}
-          label={task.status === "completed" ? "标为未完成" : "完成任务"}
-          onCheckedChange={(checked) => setStatus(checked ? "completed" : "open")}
-        />
+        {isHabit(task) ? (
+          <span className="group-label">习惯 · 只读叠层</span>
+        ) : (
+          <CheckControl
+            checked={task.status === "completed"}
+            label={task.status === "completed" ? "标为未完成" : "完成任务"}
+            onCheckedChange={(checked) => setStatus(checked ? "completed" : "open")}
+          />
+        )}
         <Button type="button" className="ghost-btn" onClick={onClose}>
           关闭
         </Button>
@@ -365,6 +408,54 @@ export function TaskDetail({ task, onClose }: { task: Task | null; onClose: () =
           }}
         />
       </Field.Root>
+      <label className="field" style={{ gridTemplateColumns: "auto 1fr", alignItems: "center" }}>
+        <AppSwitch
+          name="all-day"
+          checked={task.allDay}
+          onCheckedChange={(checked) =>
+            patch({
+              allDay: checked,
+              startTime: checked ? task.startTime : task.startTime ?? "09:00",
+              endTime: checked ? task.endTime : task.endTime ?? "10:00",
+            })
+          }
+        />
+        <span>全天</span>
+      </label>
+      {task.allDay ? null : (
+        <>
+          <Field.Root className="field" name="start-time">
+            <Field.Label>开始时间</Field.Label>
+            <Field.Control
+              type="time"
+              value={task.startTime ?? ""}
+              onChange={(event) => {
+                const raw = event.currentTarget.value;
+                if (!raw) {
+                  patch({ startTime: null, allDay: true });
+                  return;
+                }
+                patch({ startTime: raw, allDay: false });
+              }}
+            />
+          </Field.Root>
+          <Field.Root className="field" name="end-time">
+            <Field.Label>结束时间</Field.Label>
+            <Field.Control
+              type="time"
+              value={task.endTime ?? ""}
+              onChange={(event) => {
+                const raw = event.currentTarget.value;
+                if (!raw) {
+                  patch({ endTime: null });
+                  return;
+                }
+                patch({ endTime: raw, allDay: false });
+              }}
+            />
+          </Field.Root>
+        </>
+      )}
       <div className="field">
         <span>快捷日期</span>
         <Toolbar.Root className="priority-row" aria-label="快捷日期">

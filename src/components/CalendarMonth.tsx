@@ -19,6 +19,7 @@ import { addMonths, format, isSameMonth, parseISO } from "date-fns";
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { IconPlus } from "../icons";
 import { layoutMonthBars } from "../lib/calendar-layout";
+import { dayCulture } from "../lib/culture";
 import {
   addIsoDays,
   buildMonthGrid,
@@ -26,15 +27,18 @@ import {
   monthTitle,
   taskDateRange,
   todayIso,
+  weekDays,
   weekdayLabels,
 } from "../lib/dates";
-import { undatedOpenTasks } from "../lib/filters";
+import { habitsOnDay, undatedOpenTasks } from "../lib/filters";
 import { useCortex } from "../state/store";
-import type { Draft, Task } from "../types";
+import { isHabit, type Draft, type Task } from "../types";
+import { CalendarViewToggle } from "./CalendarChrome";
 import { AppSelect, CheckControl } from "./ui";
 
 function calendarTasks(tasks: Task[], showCompleted: boolean): Task[] {
   return tasks.filter((task) => {
+    if (isHabit(task)) return false;
     if (task.status === "trash" || task.status === "abandoned") return false;
     if (task.status === "completed") return showCompleted;
     return true;
@@ -83,6 +87,10 @@ export function CalendarMonth({
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
   const undated = undatedOpenTasks(cortex.tasks).filter(matchesList);
+  const weekAnchor = isSameMonth(monthDate, new Date()) ? new Date() : monthDate;
+  const weekKey = weekDays(weekAnchor, cortex.settings.weekStartsOn)[0];
+  const monthKey = format(monthDate, "yyyy-MM");
+  const today = todayIso();
 
   const colorFor = (task: Task) =>
     cortex.lists.find((list) => list.id === task.listId)?.color ?? "#57534e";
@@ -168,6 +176,7 @@ export function CalendarMonth({
           >
             今天
           </Toolbar.Button>
+          <CalendarViewToggle view="month" month={monthKey} week={weekKey} />
           <div className="toolbar">
             <label className="field" style={{ margin: 0 }}>
               <span className="live">按清单筛选</span>
@@ -239,6 +248,7 @@ export function CalendarMonth({
                   monthDate={monthDate}
                   overflow={overflow.get(iso) ?? 0}
                   draft={draft?.source === "cell" && draft.anchorDate === iso ? draft : null}
+                  habits={cortex.settings.showHabits ? habitsOnDay(cortex.tasks, iso, today) : []}
                   onDraft={onDraft}
                   onCommitDraft={onCommitDraft}
                   onCreate={() => {
@@ -302,6 +312,7 @@ function DayCell({
   monthDate,
   overflow,
   draft,
+  habits,
   onCreate,
   onDraft,
   onCommitDraft,
@@ -310,14 +321,17 @@ function DayCell({
   monthDate: Date;
   overflow: number;
   draft: Draft | null;
+  habits: Task[];
   onCreate: () => void;
   onDraft: (draft: Draft | null) => void;
   onCommitDraft: () => Promise<void>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `day:${iso}`, data: { iso } });
+  const { settings } = useCortex();
   const date = parseISO(iso);
   const today = iso === todayIso();
   const open = draft !== null;
+  const culture = dayCulture(iso);
   return (
     <Popover.Root
       open={open}
@@ -334,13 +348,36 @@ function DayCell({
         data-date={iso}
         onClick={onCreate}
       >
-        <Popover.Trigger
-          className="day-num"
-          onClick={(event) => event.stopPropagation()}
-          aria-label={`${iso}，创建任务`}
-        >
-          {format(date, "d")}
-        </Popover.Trigger>
+        <div className="day-head">
+          <div className="day-num-wrap">
+            {settings.showWeekNumbers && culture.weekNumber !== null ? (
+              <span className="week-no">W{culture.weekNumber}</span>
+            ) : null}
+            <Popover.Trigger
+              className="day-num"
+              onClick={(event) => event.stopPropagation()}
+              aria-label={`${iso}，创建任务`}
+            >
+              {format(date, "d")}
+            </Popover.Trigger>
+          </div>
+          <div className="day-culture">
+            {settings.showHolidays && culture.rest ? (
+              <b className={`rest-badge is-${culture.rest}`}>{culture.rest === "off" ? "休" : "班"}</b>
+            ) : null}
+            {settings.showLunar ? <span>{culture.lunar}</span> : null}
+            {settings.showLunar && culture.festival ? <span className="fest">{culture.festival}</span> : null}
+          </div>
+        </div>
+        {habits.length > 0 ? (
+          <div className="habits-strip is-compact" aria-label="习惯（只读）">
+            {habits.map((habit) => (
+              <span key={habit.id} className="habit-chip">
+                {habit.title}
+              </span>
+            ))}
+          </div>
+        ) : null}
         {overflow > 0 ? <div className="overflow">+{overflow}</div> : null}
       </div>
       <Popover.Portal>
