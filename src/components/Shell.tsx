@@ -1,4 +1,5 @@
 import { Button } from "@base-ui/react/button";
+import { Collapsible } from "@base-ui/react/collapsible";
 import { ContextMenu } from "@base-ui/react/context-menu";
 import { Field } from "@base-ui/react/field";
 import { Form } from "@base-ui/react/form";
@@ -16,11 +17,11 @@ import { useState, type ReactNode } from "react";
 import {
   IconCalendar,
   IconCheck,
-  IconCountdown,
   IconFlag,
   IconHabit,
   IconInbox,
   IconPlus,
+  IconSearch,
   IconSettings,
   IconSun,
   IconTrash,
@@ -63,39 +64,30 @@ export function Rail({
   route: Route;
   onOpenSettings: () => void;
 }) {
+  const onWorkflow =
+    route.name !== "calendar" && route.name !== "search" && route.name !== "habits";
   return (
-    <nav className="rail" aria-label="模块">
-      <a className="brand" href="#/smart/today" translate="no">
+    <nav className="rail" aria-label="工具">
+      <a className="brand" href="#/smart/today" translate="no" aria-label="今天">
         Cx
       </a>
       <div className="rail-nav">
         <a
-          className={`rail-btn${route.name !== "calendar" && route.name !== "search" && route.name !== "habits" ? " is-active" : ""}`}
+          className={`rail-btn${onWorkflow ? " is-active" : ""}`}
           href="#/smart/today"
+          aria-label="今天"
         >
-          <IconInbox />
-          任务
+          <IconSun />
+          今天
         </a>
         <a
           className={`rail-btn${route.name === "calendar" ? " is-active" : ""}`}
           href="#/calendar/month"
+          aria-label="日历"
         >
           <IconCalendar />
           日历
         </a>
-        <a
-          className={`rail-btn${route.name === "habits" ? " is-active" : ""}`}
-          href="#/habits"
-        >
-          <IconHabit />
-          习惯
-        </a>
-        <Hint label="V2">
-          <button type="button" className="rail-btn is-soon" disabled>
-            <IconCountdown />
-            倒数
-          </button>
-        </Hint>
       </div>
       <div className="rail-spacer" />
       <Button type="button" className="rail-btn" onClick={onOpenSettings} aria-label="设置">
@@ -335,8 +327,8 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <AppScrollArea className="sidebar-scroll">
-        <section className="side-section" aria-label="智能清单">
-          <div className="side-heading">智能清单</div>
+        <section className="side-section" aria-label="工作流">
+          <div className="side-heading">工作流</div>
           <a
             className={`side-link${isRoute(route, "today") ? " is-active" : ""}`}
             href="#/smart/today"
@@ -346,7 +338,9 @@ export function Sidebar({
             <b className="count">{openCounts.today}</b>
           </a>
           <a
-            className={`side-link${isRoute(route, "inbox") ? " is-active" : ""}`}
+            className={`side-link${isRoute(route, "inbox") ? " is-active" : ""}${
+              openCounts.inbox > 0 ? " has-capture" : ""
+            }`}
             href="#/lists/inbox"
           >
             <IconInbox />
@@ -360,21 +354,6 @@ export function Sidebar({
             <IconFlag />
             <span>下一步</span>
             <b className="count">{openCounts.next}</b>
-          </a>
-          <a
-            className={`side-link${isRoute(route, "tomorrow") ? " is-active" : ""}`}
-            href="#/smart/tomorrow"
-          >
-            <IconCalendar />
-            <span>明天</span>
-            <b className="count">{openCounts.tomorrow}</b>
-          </a>
-          <a
-            className={`side-link${isRoute(route, "summary") ? " is-active" : ""}`}
-            href="#/smart/summary"
-          >
-            <IconCheck />
-            <span>摘要</span>
           </a>
         </section>
 
@@ -400,7 +379,7 @@ export function Sidebar({
             </Hint>
           </div>
           {cortex.lists.length === 0 ? (
-            <p className="group-label">还没有项目。先建一个项目，再往里面写下一步。</p>
+            <p className="group-label">建一个有结束线的盒子，并写下第一刀。</p>
           ) : null}
           {cortex.lists.map((list) => (
             <ListNavItem
@@ -417,6 +396,48 @@ export function Sidebar({
               }}
             />
           ))}
+        </section>
+
+        <Separator className="side-rule" />
+
+        <section className="side-section" aria-label="工具">
+          <div className="side-heading">工具</div>
+          <a
+            className={`side-link${isRoute(route, "calendar") ? " is-active" : ""}`}
+            href="#/calendar/month"
+          >
+            <IconCalendar />
+            <span>日历</span>
+          </a>
+          <a
+            className={`side-link${isRoute(route, "tomorrow") ? " is-active" : ""}`}
+            href="#/smart/tomorrow"
+          >
+            <IconCalendar />
+            <span>明天</span>
+            <b className="count">{openCounts.tomorrow}</b>
+          </a>
+          <a
+            className={`side-link${isRoute(route, "summary") ? " is-active" : ""}`}
+            href="#/smart/summary"
+          >
+            <IconCheck />
+            <span>摘要</span>
+          </a>
+          <a
+            className={`side-link${isRoute(route, "search") ? " is-active" : ""}`}
+            href="#/search"
+          >
+            <IconSearch />
+            <span>搜索</span>
+          </a>
+          <a
+            className={`side-link${isRoute(route, "habits") ? " is-active" : ""}`}
+            href="#/habits"
+          >
+            <IconHabit />
+            <span>习惯</span>
+          </a>
         </section>
 
         <section className="side-section" aria-label="标签">
@@ -452,34 +473,47 @@ export function Sidebar({
           ))}
         </section>
 
-        <section className="side-section" aria-label="归档">
-          <div className="side-heading">归档</div>
-          <a
-            className={`side-link${isRoute(route, "completed") ? " is-active" : ""}`}
-            href="#/completed"
-          >
-            <IconCheck />
-            <span>已完成</span>
-            <b className="count">{openCounts.completed}</b>
-          </a>
-          <a
-            className={`side-link${isRoute(route, "abandoned") ? " is-active" : ""}`}
-            href="#/abandoned"
-          >
-            <span>已放弃</span>
-            <b className="count">{openCounts.abandoned}</b>
-          </a>
-          <a
-            className={`side-link${isRoute(route, "trash") ? " is-active" : ""}`}
-            href="#/trash"
-          >
-            <IconTrash />
-            <span>垃圾桶</span>
-            <b className="count">{openCounts.trash}</b>
-          </a>
-        </section>
+        <Collapsible.Root
+          className="side-section"
+          defaultOpen={
+            route.name === "completed" ||
+            route.name === "abandoned" ||
+            route.name === "trash"
+          }
+        >
+          <Collapsible.Trigger className="side-heading side-fold-trigger" aria-label="归档">
+            归档
+          </Collapsible.Trigger>
+          <Collapsible.Panel className="side-fold-panel" hiddenUntilFound>
+            <a
+              className={`side-link${isRoute(route, "completed") ? " is-active" : ""}`}
+              href="#/completed"
+            >
+              <IconCheck />
+              <span>已完成</span>
+              <b className="count">{openCounts.completed}</b>
+            </a>
+            <a
+              className={`side-link${isRoute(route, "abandoned") ? " is-active" : ""}`}
+              href="#/abandoned"
+            >
+              <span>已放弃</span>
+              <b className="count">{openCounts.abandoned}</b>
+            </a>
+            <a
+              className={`side-link${isRoute(route, "trash") ? " is-active" : ""}`}
+              href="#/trash"
+            >
+              <IconTrash />
+              <span>垃圾桶</span>
+              <b className="count">{openCounts.trash}</b>
+            </a>
+          </Collapsible.Panel>
+        </Collapsible.Root>
       </AppScrollArea>
-      <MiniMonth monthDate={monthDate} onMonthDate={onMonthDate} />
+      {cortex.settings.showMiniMonth || route.name === "calendar" ? (
+        <MiniMonth monthDate={monthDate} onMonthDate={onMonthDate} />
+      ) : null}
 
       <AppDialog
         open={listEditor !== null}

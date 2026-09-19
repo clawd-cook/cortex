@@ -270,6 +270,30 @@ select,
   color: var(--muted);
 }
 
+.side-fold-trigger {
+  width: calc(100% - 16px);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.side-fold-trigger:hover {
+  color: var(--ink);
+}
+
+.side-fold-panel {
+  height: var(--collapsible-panel-height);
+  overflow: hidden;
+}
+
+.side-fold-panel[data-closed] {
+  display: none;
+}
+
 .side-link,
 .side-item {
   display: flex;
@@ -292,6 +316,15 @@ select,
 .side-link.is-active,
 .side-item.is-active {
   background: rgba(255, 253, 248, 0.8);
+}
+
+.side-link.has-capture .count {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.side-link.has-capture:not(.is-active) {
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
 }
 
 .side-link svg,

@@ -289,9 +289,9 @@ export function CalendarMonth({
           ))}
         </div>
       </section>
-      <aside className="schedule" aria-label="安排任务">
-        <h2>安排任务</h2>
-        <p className="group-label">没有日期的任务。拖进某一天即排期。</p>
+      <aside className="schedule" aria-label="未排期下一步">
+        <h2>未排期下一步</h2>
+        <p className="group-label">已处理但还没有日期。拖进某一天即排期。</p>
         {undated.length === 0 ? (
           <p className="group-label">暂时没有未排期的下一步。</p>
         ) : (
