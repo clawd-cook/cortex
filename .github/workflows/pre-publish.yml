@@ -1,0 +1,260 @@
+# Behavior: spec/spec-process-cicd-pre-publish.md
+# Apple Silicon DMG only. Workflow file on the tagged commit is what runs.
+name: Pre-Publish (Beta)
+
+on:
+  push:
+    tags:
+      - "v*-beta*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "24.20.0"
+  PNPM_VERSION: "11.23.0"
+
+jobs:
+  validate:
+    name: Validate beta tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+      tag: ${{ steps.extract.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+
+      - name: Extract and validate version
+        id: extract
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$'; then
+            echo "::error::Invalid beta tag format: $TAG (expected vX.Y.Z-beta.N)"
+            exit 1
+          fi
+
+          echo "Valid beta tag: $TAG (version: $VERSION)"
+
+  build-macos:
+    name: Build macOS (${{ matrix.arch }})
+    needs: validate
+    runs-on: macos-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: aarch64
+            target: aarch64-apple-darwin
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+
+      - name: Setup Node.js + pnpm via corepack
+        run: |
+          export COREPACK_ENABLE_STRICT=0
+          corepack enable
+          corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
+          echo "node: $(node -v)"
+          echo "pnpm: $(pnpm -v)"
+        env:
+          COREPACK_ENABLE_AUTO_PIN: "0"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - uses: ./.github/actions/setup-macos-tauri
+        with:
+          target: ${{ matrix.target }}
+          save-cache: "false"
+
+      - name: Sync version to build configs
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            conf.version = process.env.VERSION;
+            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
+          "
+
+          sed -i '' "s/^version = \".*\"/version = \"${VERSION}\"/" src-tauri/Cargo.toml
+
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = process.env.VERSION;
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+          echo "Version synced to $VERSION"
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck frontend
+        run: pnpm exec tsc --noEmit
+
+      - name: Setup macOS signing
+        if: env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$CERTIFICATE_PATH"
+
+          security create-keychain -p "" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+      - name: Build Tauri app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          CI: true
+        run: |
+          cargo tauri build --target ${{ matrix.target }}
+
+      - name: Ad-hoc sign and repackage DMG
+        env:
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+          HAS_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
+        run: |
+          BUNDLE_DIR="src-tauri/target/$TARGET/release/bundle"
+          OUTPUT_DIR="$RUNNER_TEMP/artifacts"
+          mkdir -p "$OUTPUT_DIR"
+
+          APP_PATH=$(find "$BUNDLE_DIR/macos" -name "*.app" -type d | head -1)
+
+          if [ "$HAS_CERT" != "true" ] && [ -n "$APP_PATH" ]; then
+            echo "No Apple certificate — applying ad-hoc signature"
+            codesign --force --deep -s - "$APP_PATH"
+            codesign --verify --verbose "$APP_PATH"
+
+            DMG_OUT="$OUTPUT_DIR/Cortex-${VERSION}-${ARCH}.dmg"
+            hdiutil create -volname "Cortex" -srcfolder "$APP_PATH" \
+              -ov -format UDZO "$DMG_OUT"
+            echo "Re-created DMG with ad-hoc signed app"
+          else
+            DMG=$(find "$BUNDLE_DIR/dmg" -name "*.dmg" -type f | head -1)
+            if [ -z "$DMG" ]; then
+              echo "::error::No .dmg found in $BUNDLE_DIR/dmg/"
+              exit 1
+            fi
+            cp "$DMG" "$OUTPUT_DIR/Cortex-${VERSION}-${ARCH}.dmg"
+          fi
+
+          DMG_SIZE=$(stat -f%z "$OUTPUT_DIR/Cortex-${VERSION}-${ARCH}.dmg" 2>/dev/null || stat --printf='%s' "$OUTPUT_DIR/Cortex-${VERSION}-${ARCH}.dmg")
+          if [ "$DMG_SIZE" -lt 1048576 ]; then
+            echo "::error::DMG is suspiciously small (${DMG_SIZE} bytes)"
+            exit 1
+          fi
+          echo "DMG: Cortex-${VERSION}-${ARCH}.dmg ($(du -h "$OUTPUT_DIR/Cortex-${VERSION}-${ARCH}.dmg" | cut -f1))"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: cortex-macos-${{ matrix.arch }}
+          path: ${{ runner.temp }}/artifacts/Cortex-*.dmg
+          retention-days: 7
+
+  create-release:
+    name: Create GitHub Release
+    needs: [validate, build-macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: |
+          echo "Release artifacts:"
+          ls -lh artifacts/
+          echo ""
+          shasum -a 256 artifacts/*.dmg
+
+      - name: Generate release notes
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          cat > release-notes.md << EOF
+          ## Cortex Desktop ${VERSION} (Beta)
+
+          > 这是预发布版本，仅供测试。
+
+          ### 下载
+
+          | 平台 | 架构 | 文件 |
+          |------|------|------|
+          | macOS | Apple Silicon (M1/M2/M3/M4) | \`Cortex-${VERSION}-aarch64.dmg\` |
+
+          ### 安装
+
+          1. 下载 \`.dmg\` 文件
+          2. 双击打开，将 Cortex 拖入 Applications 文件夹
+          3. **首次打开前**，在终端执行：
+             \`\`\`bash
+             xattr -cr /Applications/Cortex.app
+             \`\`\`
+          4. 双击打开 Cortex
+
+          > Beta 版本未经 Apple 公证，macOS 可能提示"已损坏"。
+          > 执行 \`xattr -cr\` 即可正常使用。正式版将包含完整签名。
+
+          ### SHA-256
+          \`\`\`
+          $(shasum -a 256 artifacts/*.dmg)
+          \`\`\`
+          EOF
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          gh release create "$TAG" \
+            --title "Cortex Desktop $VERSION (Beta)" \
+            --notes-file release-notes.md \
+            --prerelease \
+            artifacts/*.dmg
+
+          echo "Release created: $(gh release view "$TAG" --json url -q .url)"
