@@ -23,7 +23,7 @@ jobs:
   sync-labels:
     name: Sync labels
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
@@ -38,7 +38,7 @@ jobs:
   label-pr:
     name: Label pull request
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     steps:
       - uses: actions/labeler@v7
