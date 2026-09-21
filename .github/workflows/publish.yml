@@ -24,7 +24,7 @@ env:
 jobs:
   validate:
     name: Validate stable tag
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     outputs:
       version: ${{ steps.extract.outputs.version }}
@@ -54,7 +54,7 @@ jobs:
   build-macos:
     name: Build macOS (${{ matrix.arch }})
     needs: validate
-    runs-on: macos-latest
+    runs-on: blacksmith-6vcpu-macos-15
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -193,7 +193,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     needs: [validate, build-macos]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
